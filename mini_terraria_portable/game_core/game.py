@@ -1,7 +1,8 @@
 from api import BLACK, DIRT as DIRT_COLOR
 from api import OUTLINE, SKY, STONE as STONE_COLOR
 from api import UI_BAR, UI_BG, UI_PANEL, WHITE
-from api import SPRITE_HEART, dirt_tile
+from api import SPRITE_HEART, SPRITE_HEART_25, SPRITE_HEART_50, SPRITE_HEART_75
+from api import TILE_STONE, dirt_tile
 from api import rectangles_overlap, text_width
 from .constants import DIRT, EMPTY, SCREEN_H, SCREEN_W, STONE, TILE, WORLD_H, WORLD_W
 from .player import Player
@@ -9,6 +10,16 @@ from .slime import Slime
 from .world import World
 
 RESPAWN_PROTECTION_FRAMES = 45
+HEART_COUNT = 5
+HEART_HEALTH = 20
+HEALTH_QUARTER = 5
+MAX_HEALTH = HEART_COUNT * HEART_HEALTH
+SLIME_DAMAGE = 10
+REGEN_DELAY_FRAMES = 150
+REGEN_INTERVAL_FRAMES = 30
+REGEN_AMOUNT = HEALTH_QUARTER
+MENU_BACKGROUND_W = 160
+MENU_BACKGROUND_H = 47
 
 
 class Game:
@@ -19,8 +30,9 @@ class Game:
         self.slimes = []
         self.camera_x = 0
         self.camera_y = 0
-        self.health = 5
-        self.max_health = 5
+        self.health = MAX_HEALTH
+        self.max_health = MAX_HEALTH
+        self.regen_timer = 0
         self.respawn_protection_timer = 0
         self.last_dig = False
         self.last_place = False
@@ -39,6 +51,7 @@ class Game:
         self.player.update(keys, self.world)
         self._update_slimes()
         self._check_enemy_hits()
+        self._update_health_regen()
         if self.respawn_protection_timer > 0:
             self.respawn_protection_timer -= 1
         self.frame_count += 1
@@ -70,6 +83,7 @@ class Game:
         self.player = Player(*self.world.spawn_position())
         self.slimes = self._make_slimes()
         self.health = self.max_health
+        self.regen_timer = 0
         self.respawn_protection_timer = 0
         self.camera_x = 0
         self.camera_y = 0
@@ -78,10 +92,11 @@ class Game:
 
     def _draw_menu(self, gfx):
         gfx.clear(UI_BG)
-        gfx.rect(24, 34, 112, 34, UI_PANEL)
-        gfx.rect(34, 44, 92, 14, UI_BAR)
-        gfx.rect(38, 48, 84, 6, WHITE)
-        gfx.text((SCREEN_W - text_width("START", 2)) // 2, 47, "START", BLACK, 2)
+        gfx.image((SCREEN_W - MENU_BACKGROUND_W) // 2, 6, "menu_background", MENU_BACKGROUND_W, MENU_BACKGROUND_H)
+        gfx.rect(24, 76, 112, 34, UI_PANEL)
+        gfx.rect(34, 86, 92, 14, UI_BAR)
+        gfx.rect(38, 90, 84, 6, WHITE)
+        gfx.text((SCREEN_W - text_width("START", 2)) // 2, 89, "START", BLACK, 2)
 
     def _draw_loading(self, gfx):
         gfx.clear(UI_BG)
@@ -159,6 +174,8 @@ class Game:
                     if ty > 0 and 0 <= tx < WORLD_W:
                         has_grass = tiles[above_base + tx] == EMPTY
                     gfx.tile_sprite(x, y, dirt_tile(has_grass))
+                elif tile == STONE:
+                    gfx.tile_sprite(x, y, TILE_STONE)
                 else:
                     gfx.tile(x, y, self._tile_color(tile), OUTLINE)
 
@@ -178,7 +195,8 @@ class Game:
                 return
 
     def _damage_player(self, enemy):
-        self.health -= 1
+        self.health -= SLIME_DAMAGE
+        self.regen_timer = 0
         if self.health <= 0:
             self._respawn_player()
             return
@@ -193,8 +211,21 @@ class Game:
     def _respawn_player(self):
         self.player = Player(*self.world.spawn_position())
         self.health = self.max_health
+        self.regen_timer = 0
         self.respawn_protection_timer = RESPAWN_PROTECTION_FRAMES
         self._update_camera()
+
+    def _update_health_regen(self):
+        if self.health <= 0 or self.health >= self.max_health:
+            self.regen_timer = 0
+            return
+        self.regen_timer += 1
+        if self.regen_timer < REGEN_DELAY_FRAMES:
+            return
+        if (self.regen_timer - REGEN_DELAY_FRAMES) % REGEN_INTERVAL_FRAMES == 0:
+            self.health += REGEN_AMOUNT
+            if self.health > self.max_health:
+                self.health = self.max_health
 
     def _make_slimes(self):
         result = []
@@ -225,11 +256,25 @@ class Game:
     def _draw_hud(self, gfx):
         gap = 1
         heart_size = 8
-        total_w = self.max_health * heart_size + (self.max_health - 1) * gap
+        total_w = HEART_COUNT * heart_size + (HEART_COUNT - 1) * gap
         x = SCREEN_W - total_w - 2
         y = 2
-        for index in range(self.health):
-            gfx.sprite8(x + index * (heart_size + gap), y, SPRITE_HEART)
+        for index in range(HEART_COUNT):
+            heart_health = self.health - (HEART_COUNT - 1 - index) * HEART_HEALTH
+            sprite = self._heart_sprite(heart_health)
+            if sprite >= 0:
+                gfx.sprite8(x + index * (heart_size + gap), y, sprite)
+
+    def _heart_sprite(self, heart_health):
+        if heart_health >= HEART_HEALTH:
+            return SPRITE_HEART
+        if heart_health >= 15:
+            return SPRITE_HEART_75
+        if heart_health >= 10:
+            return SPRITE_HEART_50
+        if heart_health >= HEALTH_QUARTER:
+            return SPRITE_HEART_25
+        return -1
 
     def _tile_color(self, tile):
         if tile == DIRT:

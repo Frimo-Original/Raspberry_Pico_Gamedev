@@ -58,6 +58,23 @@ static mp_obj_t game_tile_sprite(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(game_tile_sprite_obj, 3, 3, game_tile_sprite);
 
+static mp_obj_t game_image(size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(args[4], &bufinfo, MP_BUFFER_READ);
+    if (!engine_image(
+        mp_obj_get_int(args[0]),
+        mp_obj_get_int(args[1]),
+        mp_obj_get_int(args[2]),
+        mp_obj_get_int(args[3]),
+        (const uint8_t *)bufinfo.buf,
+        (uint32_t)bufinfo.len
+    )) {
+        mp_raise_ValueError(MP_ERROR_TEXT("image data size must be width*height*2 RGB565_BE"));
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(game_image_obj, 5, 5, game_image);
+
 static mp_obj_t game_load_player_sprite(mp_obj_t data_obj) {
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
@@ -153,6 +170,7 @@ static const mp_rom_map_elem_t game_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_tile), MP_ROM_PTR(&game_tile_obj) },
     { MP_ROM_QSTR(MP_QSTR_load_tile_sprite), MP_ROM_PTR(&game_load_tile_sprite_obj) },
     { MP_ROM_QSTR(MP_QSTR_tile_sprite), MP_ROM_PTR(&game_tile_sprite_obj) },
+    { MP_ROM_QSTR(MP_QSTR_image), MP_ROM_PTR(&game_image_obj) },
     { MP_ROM_QSTR(MP_QSTR_load_player_sprite), MP_ROM_PTR(&game_load_player_sprite_obj) },
     { MP_ROM_QSTR(MP_QSTR_player), MP_ROM_PTR(&game_player_obj) },
     { MP_ROM_QSTR(MP_QSTR_present), MP_ROM_PTR(&game_present_obj) },

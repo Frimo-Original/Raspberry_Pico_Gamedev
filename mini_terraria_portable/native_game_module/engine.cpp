@@ -11,9 +11,9 @@ namespace {
 
 bool initialized = false;
 uint16_t framebuffer[GAME_SCREEN_W * GAME_SCREEN_H];
-constexpr int sprite8_count = 3;
+constexpr int sprite8_count = 32;
 uint16_t tile_sprites[sprite8_count][8 * 8];
-bool tile_sprite_loaded[sprite8_count] = {false, false, false};
+bool tile_sprite_loaded[sprite8_count] = {};
 uint16_t player_sprite[16 * 32];
 bool player_visible = false;
 int player_x = 0;
@@ -221,6 +221,32 @@ extern "C" void engine_tile_sprite(int x, int y, int tile_id) {
             }
         }
     }
+}
+
+extern "C" bool engine_image(int x, int y, int w, int h, const uint8_t *data, uint32_t len) {
+    engine_init();
+    if (w <= 0 || h <= 0 || data == nullptr || len != static_cast<uint32_t>(w * h * 2)) {
+        return false;
+    }
+
+    for (int row = 0; row < h; ++row) {
+        int py = y + row;
+        if (py < 0 || py >= GAME_SCREEN_H) {
+            continue;
+        }
+        for (int col = 0; col < w; ++col) {
+            int px = x + col;
+            if (px < 0 || px >= GAME_SCREEN_W) {
+                continue;
+            }
+            uint32_t i = static_cast<uint32_t>((row * w + col) * 2);
+            uint16_t color = (static_cast<uint16_t>(data[i]) << 8) | data[i + 1];
+            if (color != T) {
+                framebuffer[py * GAME_SCREEN_W + px] = color;
+            }
+        }
+    }
+    return true;
 }
 
 extern "C" bool engine_load_player_sprite(const uint8_t *data, uint32_t len) {

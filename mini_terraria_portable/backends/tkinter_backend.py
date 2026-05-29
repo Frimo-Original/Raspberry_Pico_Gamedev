@@ -3,7 +3,7 @@ import time
 import tkinter as tk
 from pathlib import Path
 
-from api import draw_text
+from api import draw_text, sprite8_entries
 from api.keys import Keys
 from game_core.constants import SCALE, SCREEN_H, SCREEN_W
 
@@ -71,6 +71,8 @@ class TkRenderer:
         self.canvas = canvas
         self.sprite8_pixels = self._load_sprite8_pixels()
         self.player_pixels = self._load_player_pixels()
+        self.images = {}
+        self._load_images()
 
     def clear(self, color):
         self.canvas.delete("all")
@@ -133,8 +135,18 @@ class TkRenderer:
                     outline="",
                 )
 
+    def image(self, x, y, name, w, h):
+        image = self.images.get(name)
+        if image is not None:
+            self.canvas.create_image(x * SCALE, y * SCALE, image=image, anchor=tk.NW)
+
     def present(self):
         pass
+
+    def _load_images(self):
+        path = ROOT / "assets" / "menu" / "background.png"
+        if path.exists():
+            self.images["menu_background"] = tk.PhotoImage(file=str(path)).zoom(SCALE, SCALE)
 
     def _load_player_pixels(self):
         path = ROOT / "assets" / "sprites" / "player_hires" / "player_default.json"
@@ -145,15 +157,11 @@ class TkRenderer:
 
     def _load_sprite8_pixels(self):
         result = {}
-        for tile_id, name in ((0, "dirt"), (1, "grass")):
-            path = ROOT / "assets" / "sprites" / "tiles" / f"{name}.json"
+        for sprite in sprite8_entries():
+            path = ROOT / "assets" / "sprites" / sprite["file"].replace(".bin", ".json")
             if path.exists():
                 data = json.loads(path.read_text(encoding="utf-8"))
-                result[tile_id] = data["pixels"]
-        path = ROOT / "assets" / "sprites" / "items" / "heart.json"
-        if path.exists():
-            data = json.loads(path.read_text(encoding="utf-8"))
-            result[2] = data["pixels"]
+                result[sprite["id"]] = data["pixels"]
         return result
 
 

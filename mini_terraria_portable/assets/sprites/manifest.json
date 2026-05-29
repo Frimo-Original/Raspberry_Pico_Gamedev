@@ -11,6 +11,36 @@
       "format": "RGB565_BE"
     },
     {
+      "name": "heart_25",
+      "type": "item",
+      "layer": "",
+      "width": 8,
+      "height": 8,
+      "file": "items/heart_25.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "heart_50",
+      "type": "item",
+      "layer": "",
+      "width": 8,
+      "height": 8,
+      "file": "items/heart_50.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "heart_75",
+      "type": "item",
+      "layer": "",
+      "width": 8,
+      "height": 8,
+      "file": "items/heart_75.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
       "name": "boots_black",
       "type": "player_layer",
       "layer": "boots",
@@ -107,6 +137,16 @@
       "width": 8,
       "height": 8,
       "file": "tiles/grass.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "stone",
+      "type": "tile",
+      "layer": "",
+      "width": 8,
+      "height": 8,
+      "file": "tiles/stone.bin",
       "transparent": 63519,
       "format": "RGB565_BE"
     }
