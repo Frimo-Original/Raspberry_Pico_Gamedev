@@ -10,6 +10,7 @@ from game_core.constants import SCALE, SCREEN_H, SCREEN_W
 
 ROOT = Path(__file__).resolve().parents[1]
 TRANSPARENT = 0xF81F
+SWORD_FRAMES = 6
 
 
 HIRES_PLAYER_ART = (
@@ -147,6 +148,15 @@ class TkRenderer:
         path = ROOT / "assets" / "menu" / "background.png"
         if path.exists():
             self.images["menu_background"] = tk.PhotoImage(file=str(path)).zoom(SCALE, SCALE)
+        items_dir = ROOT / "assets" / "items"
+        image_paths = [("copper_sword_icon", items_dir / "copper_sword_icon.png")]
+        for side in ("r", "l"):
+            for frame in range(SWORD_FRAMES):
+                name = f"copper_sword_swing_{side}_{frame}"
+                image_paths.append((name, items_dir / f"{name}.png"))
+        for name, image_path in image_paths:
+            if image_path.exists():
+                self.images[name] = tk.PhotoImage(file=str(image_path)).zoom(SCALE, SCALE)
 
     def _load_player_pixels(self):
         path = ROOT / "assets" / "sprites" / "player_hires" / "player_default.json"

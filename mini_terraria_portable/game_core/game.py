@@ -25,6 +25,17 @@ SELECT_REACH_TILES = 3
 SELECT_DEADZONE = 18
 SELECT_DISTANCE_2 = 48
 SELECT_DISTANCE_3 = 76
+HOTBAR_SLOTS = 6
+HOTBAR_SLOT = 10
+HOTBAR_GAP = 1
+HOTBAR_X = 2
+HOTBAR_Y = 2
+SWORD_SWING_FRAMES = 6
+SWORD_SWING_FRAME_TICKS = 3
+SWORD_FRAME_SIZE = 32
+SWORD_RIGHT_PIVOT_X = 10
+SWORD_LEFT_PIVOT_X = 21
+SWORD_PIVOT_Y = 22
 
 
 class Game:
@@ -41,6 +52,9 @@ class Game:
         self.respawn_protection_timer = 0
         self.selected_tx = None
         self.selected_ty = None
+        self.hotbar_selected = 0
+        self.sword_swing_frame = -1
+        self.sword_swing_tick = 0
         self.last_dig = False
         self.last_place = False
         self.frame_count = 0
@@ -64,6 +78,7 @@ class Game:
         self.frame_count += 1
         self._update_camera()
         self._update_selected_block(keys)
+        self._update_sword(keys)
         self._edit_world(keys)
 
     def draw(self, gfx):
@@ -81,6 +96,7 @@ class Game:
         self._draw_selected_block(gfx)
         self._draw_slimes(gfx)
         self._draw_player(gfx)
+        self._draw_sword(gfx)
         self._draw_hud(gfx)
         gfx.present()
 
@@ -143,6 +159,19 @@ class Game:
         # Пока только выбираем блок. Ломание и постановку подключим после инвентаря.
         self.last_dig = keys.dig
         self.last_place = keys.place
+
+    def _update_sword(self, keys):
+        if self.hotbar_selected == 0 and keys.dig and not self.last_dig:
+            self.sword_swing_frame = 0
+            self.sword_swing_tick = 0
+        if self.sword_swing_frame < 0:
+            return
+        self.sword_swing_tick += 1
+        if self.sword_swing_tick >= SWORD_SWING_FRAME_TICKS:
+            self.sword_swing_tick = 0
+            self.sword_swing_frame += 1
+            if self.sword_swing_frame >= SWORD_SWING_FRAMES:
+                self.sword_swing_frame = -1
 
     def _update_selected_block(self, keys):
         target = self._joystick_target(keys)
@@ -244,6 +273,23 @@ class Game:
         y = self.player.y - self.camera_y
         gfx.player(x, y - 4, flip_x=self.player.facing > 0)
 
+    def _draw_sword(self, gfx):
+        if self.sword_swing_frame < 0:
+            return
+        player_x = self.player.x - self.camera_x
+        player_y = self.player.y - self.camera_y
+        hand_y = player_y + 6
+        if self.player.facing > 0:
+            side = "r"
+            hand_x = player_x + self.player.w
+            x = hand_x - SWORD_RIGHT_PIVOT_X
+        else:
+            side = "l"
+            hand_x = player_x
+            x = hand_x - SWORD_LEFT_PIVOT_X
+        y = hand_y - SWORD_PIVOT_Y
+        gfx.image(x, y, f"copper_sword_swing_{side}_{self.sword_swing_frame}", SWORD_FRAME_SIZE, SWORD_FRAME_SIZE)
+
     def _check_enemy_hits(self):
         if self.respawn_protection_timer > 0:
             return
@@ -324,6 +370,31 @@ class Game:
         gfx.rect(x + TILE - 1, y, 1, TILE, YELLOW)
 
     def _draw_hud(self, gfx):
+        self._draw_hotbar(gfx)
+        self._draw_hearts(gfx)
+
+    def _draw_hotbar(self, gfx):
+        for slot in range(HOTBAR_SLOTS):
+            x = HOTBAR_X + slot * (HOTBAR_SLOT + HOTBAR_GAP)
+            y = HOTBAR_Y
+            border = YELLOW if slot == self.hotbar_selected else WHITE
+            gfx.rect(x, y, HOTBAR_SLOT, HOTBAR_SLOT, border)
+            gfx.rect(x + 1, y + 1, HOTBAR_SLOT - 2, HOTBAR_SLOT - 2, UI_PANEL)
+            if slot == 0:
+                gfx.image(x + 1, y + 1, "copper_sword_icon", 8, 8)
+            elif slot == 1:
+                gfx.tile_sprite(x + 1, y + 1, dirt_tile(False))
+            elif slot == 2:
+                gfx.tile_sprite(x + 1, y + 1, TILE_STONE)
+            elif slot == HOTBAR_SLOTS - 1:
+                self._draw_inventory_slot_icon(gfx, x + 1, y + 1)
+
+    def _draw_inventory_slot_icon(self, gfx, x, y):
+        gfx.rect(x + 1, y + 1, 6, 1, WHITE)
+        gfx.rect(x + 1, y + 3, 6, 1, WHITE)
+        gfx.rect(x + 1, y + 5, 6, 1, WHITE)
+
+    def _draw_hearts(self, gfx):
         gap = 1
         heart_size = 8
         total_w = HEART_COUNT * heart_size + (HEART_COUNT - 1) * gap

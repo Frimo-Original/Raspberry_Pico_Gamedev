@@ -21,6 +21,7 @@ MENU_BACKGROUND_H = 47
 ACTION_CENTER_X = 79
 ACTION_CENTER_Y = 59
 AIM_SMOOTHING = 3
+SWORD_FRAMES = 6
 
 
 class PicoRenderer:
@@ -28,7 +29,8 @@ class PicoRenderer:
         if game is None:
             raise RuntimeError("The Pico backend needs the native MicroPython module named 'game'.")
         game.init()
-        self.menu_background = self._load_file(("assets/menu/background.bin", "/assets/menu/background.bin"))
+        self.images = {}
+        self._load_images()
         self._load_tile_sprites()
         self._load_player_sprite()
 
@@ -54,11 +56,22 @@ class PicoRenderer:
         game.player(x, y, flip_x)
 
     def image(self, x, y, name, w, h):
-        if name == "menu_background" and self.menu_background is not None:
-            game.image(x, y, w, h, self.menu_background)
+        data = self.images.get(name)
+        if data is not None:
+            game.image(x, y, w, h, data)
 
     def present(self):
         game.present()
+
+    def _load_images(self):
+        self.images["menu_background"] = self._load_file(("assets/menu/background.bin", "/assets/menu/background.bin"))
+        self.images["copper_sword_icon"] = self._load_file(
+            ("assets/items/copper_sword_icon.bin", "/assets/items/copper_sword_icon.bin")
+        )
+        for side in ("r", "l"):
+            for frame in range(SWORD_FRAMES):
+                name = f"copper_sword_swing_{side}_{frame}"
+                self.images[name] = self._load_file((f"assets/items/{name}.bin", f"/assets/items/{name}.bin"))
 
     def _load_file(self, paths):
         for path in paths:
