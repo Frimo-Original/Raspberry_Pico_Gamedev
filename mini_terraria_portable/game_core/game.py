@@ -36,6 +36,17 @@ SWORD_FRAME_SIZE = 32
 SWORD_RIGHT_PIVOT_X = 10
 SWORD_LEFT_PIVOT_X = 21
 SWORD_PIVOT_Y = 22
+SWORD_DAMAGE = 10
+SWORD_HIT_W = 18
+SWORD_HIT_H = 18
+
+
+class HitBox:
+    def __init__(self, x, y, w, h):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
 
 
 class Game:
@@ -55,6 +66,7 @@ class Game:
         self.hotbar_selected = 0
         self.sword_swing_frame = -1
         self.sword_swing_tick = 0
+        self.sword_hit_done = False
         self.last_dig = False
         self.last_place = False
         self.frame_count = 0
@@ -79,6 +91,7 @@ class Game:
         self._update_camera()
         self._update_selected_block(keys)
         self._update_sword(keys)
+        self._check_sword_hits()
         self._edit_world(keys)
 
     def draw(self, gfx):
@@ -164,6 +177,7 @@ class Game:
         if self.hotbar_selected == 0 and keys.dig and not self.last_dig:
             self.sword_swing_frame = 0
             self.sword_swing_tick = 0
+            self.sword_hit_done = False
         if self.sword_swing_frame < 0:
             return
         self.sword_swing_tick += 1
@@ -172,6 +186,26 @@ class Game:
             self.sword_swing_frame += 1
             if self.sword_swing_frame >= SWORD_SWING_FRAMES:
                 self.sword_swing_frame = -1
+                self.sword_hit_done = False
+
+    def _check_sword_hits(self):
+        if self.sword_swing_frame < 0 or self.sword_hit_done:
+            return
+        hitbox = self._sword_hitbox()
+        for slime in self.slimes:
+            if slime.alive() and rectangles_overlap(hitbox, slime):
+                slime.damage(SWORD_DAMAGE)
+                self.sword_hit_done = True
+                break
+        self.slimes = [slime for slime in self.slimes if slime.alive()]
+
+    def _sword_hitbox(self):
+        if self.player.facing > 0:
+            x = self.player.x + self.player.w - 1
+        else:
+            x = self.player.x - SWORD_HIT_W + 1
+        y = self.player.y - 4
+        return HitBox(x, y, SWORD_HIT_W, SWORD_HIT_H)
 
     def _update_selected_block(self, keys):
         target = self._joystick_target(keys)
@@ -294,7 +328,7 @@ class Game:
         if self.respawn_protection_timer > 0:
             return
         for slime in self.slimes:
-            if rectangles_overlap(self.player, slime):
+            if slime.alive() and rectangles_overlap(self.player, slime):
                 self._damage_player(slime)
                 return
 
@@ -348,13 +382,13 @@ class Game:
         for slime in self.slimes:
             tile_x = slime.tile_x()
             if first_visible <= tile_x <= last_visible:
-                slime.update(self.world)
+                slime.update(self.world, self.player)
 
     def _draw_slimes(self, gfx):
         left = self.camera_x - 12
         right = self.camera_x + SCREEN_W + 12
         for slime in self.slimes:
-            if left <= slime.x <= right:
+            if slime.alive() and left <= slime.x <= right:
                 slime.draw(gfx, self.camera_x, self.camera_y)
 
     def _draw_selected_block(self, gfx):

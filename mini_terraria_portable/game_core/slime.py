@@ -1,9 +1,11 @@
-from api import BLACK, GREEN
+from api import BLACK, GREEN, RED, WHITE
 from .constants import MAX_FALL_SPEED, TILE
 
 
 SLIME_JUMP_SPEED = -5
 SLIME_MOVE_SPEED = 1
+SLIME_AGGRO_MOVE_SPEED = 2
+SLIME_MAX_HEALTH = 30
 
 
 class Slime:
@@ -18,16 +20,25 @@ class Slime:
         self.jump_delay = jump_delay
         self.jump_timer = jump_delay
         self.on_ground = False
+        self.max_health = SLIME_MAX_HEALTH
+        self.health = self.max_health
+        self.aggressive = False
+        self.health_bar_timer = 0
 
-    def update(self, world):
+    def update(self, world, player=None):
+        if self.health_bar_timer > 0:
+            self.health_bar_timer -= 1
         if self.on_ground:
             self.vx = 0
             self.jump_timer -= 1
             if self.jump_timer <= 0:
-                self.vx = self.direction * SLIME_MOVE_SPEED
+                speed = SLIME_AGGRO_MOVE_SPEED if self.aggressive else SLIME_MOVE_SPEED
+                if self.aggressive and player is not None:
+                    self.direction = -1 if player.x < self.x else 1
+                self.vx = self.direction * speed
                 self.vy = SLIME_JUMP_SPEED
                 self.on_ground = False
-                self.jump_timer = self.jump_delay
+                self.jump_timer = max(10, self.jump_delay // 2) if self.aggressive else self.jump_delay
 
         self._move_x(world)
         self.vy += 1
@@ -42,6 +53,26 @@ class Slime:
         gfx.rect(x, y + 1, self.w, self.h - 1, GREEN)
         gfx.rect(x + 2, y + 2, 1, 1, BLACK)
         gfx.rect(x + 5, y + 2, 1, 1, BLACK)
+        if self.health < self.max_health or self.health_bar_timer > 0:
+            self._draw_health_bar(gfx, x, y + self.h + 2)
+
+    def damage(self, amount):
+        self.health -= amount
+        self.aggressive = True
+        self.health_bar_timer = 90
+        if self.health < 0:
+            self.health = 0
+
+    def alive(self):
+        return self.health > 0
+
+    def _draw_health_bar(self, gfx, x, y):
+        bar_w = self.w
+        filled = bar_w * self.health // self.max_health
+        gfx.rect(x, y, bar_w, 3, BLACK)
+        if filled > 0:
+            gfx.rect(x + 1, y + 1, max(1, filled - 2), 1, RED)
+        gfx.rect(x, y - 1, bar_w, 1, WHITE)
 
     def _move_x(self, world):
         if self.vx == 0:
