@@ -1,0 +1,114 @@
+{
+  "sprites": [
+    {
+      "name": "heart",
+      "type": "item",
+      "layer": "",
+      "width": 8,
+      "height": 8,
+      "file": "items/heart.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "boots_black",
+      "type": "player_layer",
+      "layer": "boots",
+      "width": 8,
+      "height": 16,
+      "file": "player/boots_black.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "eyes_blue",
+      "type": "player_layer",
+      "layer": "eyes",
+      "width": 8,
+      "height": 16,
+      "file": "player/eyes_blue.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "hair_spiky",
+      "type": "player_layer",
+      "layer": "hair",
+      "width": 8,
+      "height": 16,
+      "file": "player/hair_spiky.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "pants_dark",
+      "type": "player_layer",
+      "layer": "pants",
+      "width": 8,
+      "height": 16,
+      "file": "player/pants_dark.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "shirt_blue",
+      "type": "player_layer",
+      "layer": "shirt",
+      "width": 8,
+      "height": 16,
+      "file": "player/shirt_blue.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "skin_default",
+      "type": "player_layer",
+      "layer": "skin",
+      "width": 8,
+      "height": 16,
+      "file": "player/skin_default.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "player_default",
+      "type": "player_hires",
+      "layer": "",
+      "width": 16,
+      "height": 32,
+      "file": "player_hires/player_default.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "terraria_hair_test",
+      "type": "free",
+      "layer": "",
+      "width": 16,
+      "height": 16,
+      "file": "terraria_hair_test.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "dirt",
+      "type": "tile",
+      "layer": "",
+      "width": 8,
+      "height": 8,
+      "file": "tiles/dirt.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    },
+    {
+      "name": "grass",
+      "type": "tile",
+      "layer": "",
+      "width": 8,
+      "height": 8,
+      "file": "tiles/grass.bin",
+      "transparent": 63519,
+      "format": "RGB565_BE"
+    }
+  ]
+}
