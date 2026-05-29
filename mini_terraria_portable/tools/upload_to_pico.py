@@ -1,10 +1,13 @@
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+ASSET_RUNTIME_FILES = {".bin"}
+ASSET_RUNTIME_NAMES = {"manifest.json"}
 
 
 def run_mpremote(*args):
@@ -15,6 +18,11 @@ def run_mpremote(*args):
         raise
     except subprocess.CalledProcessError as exc:
         raise SystemExit(exc.returncode)
+
+
+def run_mpremote_optional(*args):
+    cmd = [sys.executable, "-m", "mpremote", *args]
+    return subprocess.run(cmd, cwd=ROOT)
 
 
 def ensure_mpremote():
@@ -35,6 +43,19 @@ def remove_cache_dirs():
         shutil.rmtree(cache_dir)
 
 
+def copy_runtime_assets(target):
+    source = ROOT / "assets"
+    for path in source.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix not in ASSET_RUNTIME_FILES and path.name not in ASSET_RUNTIME_NAMES:
+            continue
+        rel_path = path.relative_to(source)
+        out_path = target / rel_path
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, out_path)
+
+
 def main():
     ensure_mpremote()
     remove_cache_dirs()
@@ -44,7 +65,11 @@ def main():
     run_mpremote("fs", "cp", "-r", "game_core", ":")
     run_mpremote("fs", "cp", "-r", "backends", ":")
     run_mpremote("fs", "cp", "-r", "examples", ":")
-    run_mpremote("fs", "cp", "-r", "assets", ":")
+    run_mpremote_optional("fs", "rm", "-r", ":assets")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        runtime_assets = Path(temp_dir) / "assets"
+        copy_runtime_assets(runtime_assets)
+        run_mpremote("fs", "cp", "-r", str(runtime_assets), ":")
     run_mpremote("fs", "cp", "pico/main.py", ":main.py")
 
     print("Resetting Pico...")
