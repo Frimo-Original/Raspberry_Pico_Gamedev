@@ -30,12 +30,18 @@ HOTBAR_SLOT = 10
 HOTBAR_GAP = 1
 HOTBAR_X = 2
 HOTBAR_Y = 2
-SWORD_SWING_FRAMES = 6
-SWORD_SWING_FRAME_TICKS = 3
-SWORD_FRAME_SIZE = 32
-SWORD_RIGHT_PIVOT_X = 10
-SWORD_LEFT_PIVOT_X = 21
-SWORD_PIVOT_Y = 22
+HOTBAR_SELECT_THRESHOLD = 35
+HOTBAR_SELECT_RELEASE = 18
+ITEM_SWORD = 0
+ITEM_PICKAXE = 1
+ITEM_DIRT = 2
+ITEM_STONE = 3
+ITEM_SWING_FRAMES = 6
+ITEM_SWING_FRAME_TICKS = 3
+ITEM_FRAME_SIZE = 32
+ITEM_RIGHT_PIVOT_X = 10
+ITEM_LEFT_PIVOT_X = 21
+ITEM_PIVOT_Y = 22
 SWORD_DAMAGE = 10
 SWORD_HIT_W = 18
 SWORD_HIT_H = 18
@@ -64,8 +70,12 @@ class Game:
         self.selected_tx = None
         self.selected_ty = None
         self.hotbar_selected = 0
-        self.sword_swing_frame = -1
-        self.sword_swing_tick = 0
+        self.hotbar_select_mode = False
+        self.hotbar_candidate = 0
+        self.hotbar_axis_lock = 0
+        self.item_swing_frame = -1
+        self.item_swing_tick = 0
+        self.item_swing_name = ""
         self.sword_hit_done = False
         self.last_dig = False
         self.last_place = False
@@ -81,6 +91,13 @@ class Game:
                 self._start_playing()
             return
 
+        self._update_hotbar_selection(keys)
+        if self.hotbar_select_mode:
+            keys.left = False
+            keys.right = False
+            keys.jump = False
+            keys.dig = False
+            keys.place = False
         self.player.update(keys, self.world)
         self._update_slimes()
         self._check_enemy_hits()
@@ -90,7 +107,7 @@ class Game:
         self.frame_count += 1
         self._update_camera()
         self._update_selected_block(keys)
-        self._update_sword(keys)
+        self._update_item_swing(keys)
         self._check_sword_hits()
         self._edit_world(keys)
 
@@ -109,7 +126,7 @@ class Game:
         self._draw_selected_block(gfx)
         self._draw_slimes(gfx)
         self._draw_player(gfx)
-        self._draw_sword(gfx)
+        self._draw_item_swing(gfx)
         self._draw_hud(gfx)
         gfx.present()
 
@@ -173,23 +190,63 @@ class Game:
         self.last_dig = keys.dig
         self.last_place = keys.place
 
-    def _update_sword(self, keys):
-        if self.hotbar_selected == 0 and keys.dig and not self.last_dig:
-            self.sword_swing_frame = 0
-            self.sword_swing_tick = 0
-            self.sword_hit_done = False
-        if self.sword_swing_frame < 0:
+    def _update_hotbar_selection(self, keys):
+        if keys.hotbar_toggle:
+            if self.hotbar_select_mode:
+                self.hotbar_selected = self.hotbar_candidate
+                self.hotbar_select_mode = False
+                self.hotbar_axis_lock = 0
+            else:
+                self.hotbar_candidate = self.hotbar_selected
+                self.hotbar_select_mode = True
+                self.hotbar_axis_lock = 0
+        if not self.hotbar_select_mode:
             return
-        self.sword_swing_tick += 1
-        if self.sword_swing_tick >= SWORD_SWING_FRAME_TICKS:
-            self.sword_swing_tick = 0
-            self.sword_swing_frame += 1
-            if self.sword_swing_frame >= SWORD_SWING_FRAMES:
-                self.sword_swing_frame = -1
+
+        axis = keys.aim_x
+        if -HOTBAR_SELECT_RELEASE <= axis <= HOTBAR_SELECT_RELEASE:
+            self.hotbar_axis_lock = 0
+            return
+        direction = 0
+        if axis >= HOTBAR_SELECT_THRESHOLD:
+            direction = 1
+        elif axis <= -HOTBAR_SELECT_THRESHOLD:
+            direction = -1
+        if direction != 0 and direction != self.hotbar_axis_lock:
+            self.hotbar_candidate += direction
+            if self.hotbar_candidate < 0:
+                self.hotbar_candidate = HOTBAR_SLOTS - 1
+            elif self.hotbar_candidate >= HOTBAR_SLOTS:
+                self.hotbar_candidate = 0
+            self.hotbar_axis_lock = direction
+
+    def _update_item_swing(self, keys):
+        item_name = self._current_swing_item()
+        if item_name and keys.dig and not self.last_dig:
+            self.item_swing_name = item_name
+            self.item_swing_frame = 0
+            self.item_swing_tick = 0
+            self.sword_hit_done = False
+        if self.item_swing_frame < 0:
+            return
+        self.item_swing_tick += 1
+        if self.item_swing_tick >= ITEM_SWING_FRAME_TICKS:
+            self.item_swing_tick = 0
+            self.item_swing_frame += 1
+            if self.item_swing_frame >= ITEM_SWING_FRAMES:
+                self.item_swing_frame = -1
+                self.item_swing_name = ""
                 self.sword_hit_done = False
 
+    def _current_swing_item(self):
+        if self.hotbar_selected == ITEM_SWORD:
+            return "copper_sword"
+        if self.hotbar_selected == ITEM_PICKAXE:
+            return "copper_pickaxe"
+        return ""
+
     def _check_sword_hits(self):
-        if self.sword_swing_frame < 0 or self.sword_hit_done:
+        if self.item_swing_name != "copper_sword" or self.item_swing_frame < 0 or self.sword_hit_done:
             return
         hitbox = self._sword_hitbox()
         for slime in self.slimes:
@@ -208,6 +265,10 @@ class Game:
         return HitBox(x, y, SWORD_HIT_W, SWORD_HIT_H)
 
     def _update_selected_block(self, keys):
+        if self.hotbar_select_mode:
+            self.selected_tx = None
+            self.selected_ty = None
+            return
         target = self._joystick_target(keys)
         if target is None and keys.cursor_active:
             tx = (keys.cursor_x + self.camera_x) // TILE
@@ -307,8 +368,8 @@ class Game:
         y = self.player.y - self.camera_y
         gfx.player(x, y - 4, flip_x=self.player.facing > 0)
 
-    def _draw_sword(self, gfx):
-        if self.sword_swing_frame < 0:
+    def _draw_item_swing(self, gfx):
+        if self.item_swing_frame < 0 or not self.item_swing_name:
             return
         player_x = self.player.x - self.camera_x
         player_y = self.player.y - self.camera_y
@@ -316,13 +377,13 @@ class Game:
         if self.player.facing > 0:
             side = "r"
             hand_x = player_x + self.player.w
-            x = hand_x - SWORD_RIGHT_PIVOT_X
+            x = hand_x - ITEM_RIGHT_PIVOT_X
         else:
             side = "l"
             hand_x = player_x
-            x = hand_x - SWORD_LEFT_PIVOT_X
-        y = hand_y - SWORD_PIVOT_Y
-        gfx.image(x, y, f"copper_sword_swing_{side}_{self.sword_swing_frame}", SWORD_FRAME_SIZE, SWORD_FRAME_SIZE)
+            x = hand_x - ITEM_LEFT_PIVOT_X
+        y = hand_y - ITEM_PIVOT_Y
+        gfx.image(x, y, f"{self.item_swing_name}_swing_{side}_{self.item_swing_frame}", ITEM_FRAME_SIZE, ITEM_FRAME_SIZE)
 
     def _check_enemy_hits(self):
         if self.respawn_protection_timer > 0:
@@ -408,17 +469,25 @@ class Game:
         self._draw_hearts(gfx)
 
     def _draw_hotbar(self, gfx):
+        hotbar_w = HOTBAR_SLOTS * HOTBAR_SLOT + (HOTBAR_SLOTS - 1) * HOTBAR_GAP
+        if self.hotbar_select_mode:
+            gfx.rect(HOTBAR_X, HOTBAR_Y + HOTBAR_SLOT + 1, hotbar_w, 2, UI_BAR)
         for slot in range(HOTBAR_SLOTS):
             x = HOTBAR_X + slot * (HOTBAR_SLOT + HOTBAR_GAP)
             y = HOTBAR_Y
-            border = YELLOW if slot == self.hotbar_selected else WHITE
+            active_slot = self.hotbar_candidate if self.hotbar_select_mode else self.hotbar_selected
+            border = YELLOW if slot == active_slot else WHITE
+            if self.hotbar_select_mode and slot == self.hotbar_selected and slot != active_slot:
+                border = UI_BAR
             gfx.rect(x, y, HOTBAR_SLOT, HOTBAR_SLOT, border)
             gfx.rect(x + 1, y + 1, HOTBAR_SLOT - 2, HOTBAR_SLOT - 2, UI_PANEL)
-            if slot == 0:
+            if slot == ITEM_SWORD:
                 gfx.image(x + 1, y + 1, "copper_sword_icon", 8, 8)
-            elif slot == 1:
+            elif slot == ITEM_PICKAXE:
+                gfx.image(x + 1, y + 1, "copper_pickaxe_icon", 8, 8)
+            elif slot == ITEM_DIRT:
                 gfx.tile_sprite(x + 1, y + 1, dirt_tile(False))
-            elif slot == 2:
+            elif slot == ITEM_STONE:
                 gfx.tile_sprite(x + 1, y + 1, TILE_STONE)
             elif slot == HOTBAR_SLOTS - 1:
                 self._draw_inventory_slot_icon(gfx, x + 1, y + 1)

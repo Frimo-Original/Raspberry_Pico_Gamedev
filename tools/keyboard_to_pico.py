@@ -6,6 +6,8 @@ import tkinter as tk
 
 BAUDRATE = 115200
 SEND_INTERVAL_MS = 30
+HOTBAR_KEYS = {"slash", "question", "period", "greater", "less", "Tab"}
+HOTBAR_CHARS = {"/", "?", ".", ",", "ю", "Ю", "б", "Б"}
 
 
 def find_default_port():
@@ -22,17 +24,21 @@ class KeyboardBridge:
         self.left = False
         self.right = False
         self.jump = False
+        self.hotbar_toggle = False
+        self.pressed = set()
 
         root.title("Pico Keyboard Bridge")
         root.geometry("360x170")
         root.resizable(False, False)
         self.label = tk.Label(
             root,
-            text="Click here, then use arrows / Space\n\nLeft/Right: move\nUp/Space: jump\nQ: quit",
+            text="Click here, then use arrows / Space\n\nLeft/Right: move\nUp/Space: jump\n?/Slash: choose slot\nQ: quit",
             font=("Arial", 16),
             justify=tk.CENTER,
         )
         self.label.pack(expand=True, fill=tk.BOTH)
+        self.status = tk.Label(root, text="Ready", font=("Arial", 11))
+        self.status.pack(fill=tk.X)
 
         root.bind("<KeyPress>", self._key_down)
         root.bind("<KeyRelease>", self._key_up)
@@ -42,17 +48,27 @@ class KeyboardBridge:
 
     def _key_down(self, event):
         key = event.keysym
+        first_press = key not in self.pressed
+        self.pressed.add(key)
         if key in ("Left", "a", "A"):
             self.left = True
         elif key in ("Right", "d", "D"):
             self.right = True
         elif key in ("Up", "space", "w", "W"):
             self.jump = True
+        elif self._is_hotbar_key(event) and first_press:
+            self.hotbar_toggle = True
+            self.status.config(text=f"Choose slot command sent: {key!r} {event.char!r}")
         elif key in ("q", "Q", "Escape"):
             self._close()
 
+    def _is_hotbar_key(self, event):
+        return event.keysym in HOTBAR_KEYS or event.char in HOTBAR_CHARS
+
     def _key_up(self, event):
         key = event.keysym
+        if key in self.pressed:
+            self.pressed.remove(key)
         if key in ("Left", "a", "A"):
             self.left = False
         elif key in ("Right", "d", "D"):
@@ -68,6 +84,9 @@ class KeyboardBridge:
             data.append(ord("R"))
         if self.jump:
             data.append(ord("J"))
+        if self.hotbar_toggle:
+            data.append(ord("H"))
+            self.hotbar_toggle = False
         if data:
             self.serial_port.write(data)
         self.root.after(SEND_INTERVAL_MS, self._send_state)

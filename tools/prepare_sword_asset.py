@@ -40,6 +40,19 @@ def resize_nearest(rows, width, height, out_w, out_h):
     return result
 
 
+def remove_white_background(pixels, threshold):
+    result = []
+    for row in pixels:
+        out_row = []
+        for r, g, b, a in row:
+            if a > 0 and r >= threshold and g >= threshold and b >= threshold:
+                out_row.append((r, g, b, 0))
+            else:
+                out_row.append((r, g, b, a))
+        result.append(out_row)
+    return result
+
+
 def empty_rgba(w, h):
     return [[(0, 0, 0, 0) for _x in range(w)] for _y in range(h)]
 
@@ -88,15 +101,28 @@ def write_bin(path, pixels):
     Path(path).write_bytes(raw)
 
 
+def parse_pair(text):
+    left, right = text.split(",", 1)
+    return int(left), int(right)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Prepare Copper Shortsword assets for the game.")
+    parser = argparse.ArgumentParser(description="Prepare a 16x16 item and 32x32 swing frames for the game.")
     parser.add_argument("input")
     parser.add_argument("--name", default="copper_sword")
+    parser.add_argument("--pivot", default="2,14", help="Rotation pivot inside the 16x16 item, as x,y.")
+    parser.add_argument("--offset", default="8,8", help="Top-left offset of the item inside each 32x32 swing frame.")
+    parser.add_argument("--transparent-white", type=int, default=0, help="Make near-white pixels transparent, e.g. 245.")
     args = parser.parse_args()
+    pivot = parse_pair(args.pivot)
+    offset = parse_pair(args.offset)
 
     width, height, rows = load_rgba(args.input)
     base = resize_nearest(rows, width, height, 16, 16)
     icon = resize_nearest(rows, width, height, 8, 8)
+    if args.transparent_white:
+        base = remove_white_background(base, args.transparent_white)
+        icon = remove_white_background(icon, args.transparent_white)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     write_png_rgba(OUT_DIR / f"{args.name}_icon.png", 8, 8, icon)
@@ -105,7 +131,7 @@ def main():
     write_bin(OUT_DIR / f"{args.name}.bin", base)
 
     for index, angle in enumerate(SWING_ANGLES):
-        frame = rotate_sprite(base, angle)
+        frame = rotate_sprite(base, angle, pivot=pivot, offset=offset)
         frame_left = flip_horizontal(frame)
         write_png_rgba(OUT_DIR / f"{args.name}_swing_r_{index}.png", 32, 32, frame)
         write_bin(OUT_DIR / f"{args.name}_swing_r_{index}.bin", frame)

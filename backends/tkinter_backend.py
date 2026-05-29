@@ -10,7 +10,10 @@ from game_core.constants import SCALE, SCREEN_H, SCREEN_W
 
 ROOT = Path(__file__).resolve().parents[1]
 TRANSPARENT = 0xF81F
-SWORD_FRAMES = 6
+ITEM_SWING_FRAMES = 6
+SWING_ITEMS = ("copper_sword", "copper_pickaxe")
+HOTBAR_KEYS = {"slash", "question", "period", "greater", "less", "Tab"}
+HOTBAR_CHARS = {"/", "?", ".", ",", "ю", "Ю", "б", "Б"}
 
 
 HIRES_PLAYER_ART = (
@@ -149,11 +152,14 @@ class TkRenderer:
         if path.exists():
             self.images["menu_background"] = tk.PhotoImage(file=str(path)).zoom(SCALE, SCALE)
         items_dir = ROOT / "assets" / "items"
-        image_paths = [("copper_sword_icon", items_dir / "copper_sword_icon.png")]
-        for side in ("r", "l"):
-            for frame in range(SWORD_FRAMES):
-                name = f"copper_sword_swing_{side}_{frame}"
-                image_paths.append((name, items_dir / f"{name}.png"))
+        image_paths = []
+        for item in SWING_ITEMS:
+            icon_name = f"{item}_icon"
+            image_paths.append((icon_name, items_dir / f"{icon_name}.png"))
+            for side in ("r", "l"):
+                for frame in range(ITEM_SWING_FRAMES):
+                    name = f"{item}_swing_{side}_{frame}"
+                    image_paths.append((name, items_dir / f"{name}.png"))
         for name, image_path in image_paths:
             if image_path.exists():
                 self.images[name] = tk.PhotoImage(file=str(image_path)).zoom(SCALE, SCALE)
@@ -179,6 +185,7 @@ class TkInput:
     def __init__(self, root, canvas):
         self.keys = Keys()
         self._pressed = set()
+        self._hotbar_toggle_pending = False
         root.bind("<KeyPress>", self._key_down)
         root.bind("<KeyRelease>", self._key_up)
         canvas.bind("<Motion>", self._mouse_move)
@@ -194,10 +201,17 @@ class TkInput:
         self.keys.left = "Left" in self._pressed or "a" in self._pressed
         self.keys.right = "Right" in self._pressed or "d" in self._pressed
         self.keys.jump = "space" in self._pressed or "Up" in self._pressed or "w" in self._pressed
+        self.keys.hotbar_toggle = self._hotbar_toggle_pending
+        self._hotbar_toggle_pending = False
         return self.keys
 
     def _key_down(self, event):
+        if self._is_hotbar_key(event) and event.keysym not in self._pressed:
+            self._hotbar_toggle_pending = True
         self._pressed.add(event.keysym)
+
+    def _is_hotbar_key(self, event):
+        return event.keysym in HOTBAR_KEYS or event.char in HOTBAR_CHARS
 
     def _key_up(self, event):
         if event.keysym in self._pressed:

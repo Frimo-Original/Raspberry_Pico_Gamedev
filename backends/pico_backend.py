@@ -21,7 +21,8 @@ MENU_BACKGROUND_H = 47
 ACTION_CENTER_X = 79
 ACTION_CENTER_Y = 59
 AIM_SMOOTHING = 3
-SWORD_FRAMES = 6
+ITEM_SWING_FRAMES = 6
+SWING_ITEMS = ("copper_sword", "copper_pickaxe")
 
 
 class PicoRenderer:
@@ -65,13 +66,13 @@ class PicoRenderer:
 
     def _load_images(self):
         self.images["menu_background"] = self._load_file(("assets/menu/background.bin", "/assets/menu/background.bin"))
-        self.images["copper_sword_icon"] = self._load_file(
-            ("assets/items/copper_sword_icon.bin", "/assets/items/copper_sword_icon.bin")
-        )
-        for side in ("r", "l"):
-            for frame in range(SWORD_FRAMES):
-                name = f"copper_sword_swing_{side}_{frame}"
-                self.images[name] = self._load_file((f"assets/items/{name}.bin", f"/assets/items/{name}.bin"))
+        for item in SWING_ITEMS:
+            icon_name = f"{item}_icon"
+            self.images[icon_name] = self._load_file((f"assets/items/{icon_name}.bin", f"/assets/items/{icon_name}.bin"))
+            for side in ("r", "l"):
+                for frame in range(ITEM_SWING_FRAMES):
+                    name = f"{item}_swing_{side}_{frame}"
+                    self.images[name] = self._load_file((f"assets/items/{name}.bin", f"/assets/items/{name}.bin"))
 
     def _load_file(self, paths):
         for path in paths:
@@ -108,6 +109,7 @@ class PicoInput:
         self.kb_left = 0
         self.kb_right = 0
         self.kb_jump = 0
+        self.kb_hotbar_toggle = False
         self.aim_x = 0
         self.aim_y = 0
         self.stdin_poll = None
@@ -136,6 +138,8 @@ class PicoInput:
         self.aim_y = self._smooth_axis(self.aim_y, self._scale_axis(action_y - ACTION_CENTER_Y, ACTION_CENTER_Y))
         self.keys.aim_x = self.aim_x
         self.keys.aim_y = self.aim_y
+        self.keys.hotbar_toggle = self.kb_hotbar_toggle
+        self.kb_hotbar_toggle = False
         self.keys.dig = game.action_dig()
         self.keys.place = game.action_place()
         self._tick_keyboard_bridge()
@@ -163,6 +167,8 @@ class PicoInput:
                 self.kb_right = KEYBOARD_HOLD_FRAMES
             elif ch == "J":
                 self.kb_jump = KEYBOARD_HOLD_FRAMES
+            elif ch == "H" or ch == "h" or ch == "T":
+                self.kb_hotbar_toggle = True
 
     def _tick_keyboard_bridge(self):
         if self.kb_left > 0:

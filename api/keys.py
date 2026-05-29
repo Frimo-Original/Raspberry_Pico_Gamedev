@@ -10,6 +10,7 @@ class Keys:
         self.cursor_active = False
         self.aim_x = 0
         self.aim_y = 0
+        self.hotbar_toggle = False
 
     @property
     def action(self):
