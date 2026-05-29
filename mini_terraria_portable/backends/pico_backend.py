@@ -1,3 +1,4 @@
+from api import draw_text
 from api.keys import Keys
 
 try:
@@ -28,6 +29,9 @@ class PicoRenderer:
 
     def sprite8(self, x, y, sprite_id):
         game.tile_sprite(x, y, sprite_id)
+
+    def text(self, x, y, text, color, scale=1):
+        draw_text(self, x, y, text, color, scale)
 
     def player(self, x, y, flip_x=False):
         game.player(x, y, flip_x)

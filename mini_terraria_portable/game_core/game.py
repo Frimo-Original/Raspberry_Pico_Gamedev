@@ -2,13 +2,13 @@ from api import BLACK, DIRT as DIRT_COLOR
 from api import OUTLINE, SKY, STONE as STONE_COLOR
 from api import UI_BAR, UI_BG, UI_PANEL, WHITE
 from api import SPRITE_HEART, dirt_tile
-from api import rectangles_overlap
+from api import rectangles_overlap, text_width
 from .constants import DIRT, EMPTY, SCREEN_H, SCREEN_W, STONE, TILE, WORLD_H, WORLD_W
 from .player import Player
 from .slime import Slime
 from .world import World
 
-INVULNERABLE_FRAMES = 45
+RESPAWN_PROTECTION_FRAMES = 45
 
 
 class Game:
@@ -21,7 +21,7 @@ class Game:
         self.camera_y = 0
         self.health = 5
         self.max_health = 5
-        self.invulnerable_timer = 0
+        self.respawn_protection_timer = 0
         self.last_dig = False
         self.last_place = False
         self.frame_count = 0
@@ -39,8 +39,8 @@ class Game:
         self.player.update(keys, self.world)
         self._update_slimes()
         self._check_enemy_hits()
-        if self.invulnerable_timer > 0:
-            self.invulnerable_timer -= 1
+        if self.respawn_protection_timer > 0:
+            self.respawn_protection_timer -= 1
         self.frame_count += 1
         self._update_camera()
         self._edit_world(keys)
@@ -70,7 +70,7 @@ class Game:
         self.player = Player(*self.world.spawn_position())
         self.slimes = self._make_slimes()
         self.health = self.max_health
-        self.invulnerable_timer = 0
+        self.respawn_protection_timer = 0
         self.camera_x = 0
         self.camera_y = 0
         self.frame_count = 0
@@ -81,9 +81,11 @@ class Game:
         gfx.rect(24, 34, 112, 34, UI_PANEL)
         gfx.rect(34, 44, 92, 14, UI_BAR)
         gfx.rect(38, 48, 84, 6, WHITE)
+        gfx.text((SCREEN_W - text_width("START", 2)) // 2, 47, "START", BLACK, 2)
 
     def _draw_loading(self, gfx):
         gfx.clear(UI_BG)
+        gfx.text((SCREEN_W - text_width("LOADING", 1)) // 2, 42, "LOADING", WHITE)
         current, total = self.world.generation_progress()
         bar_w = 104
         bar_h = 10
@@ -161,14 +163,14 @@ class Game:
                     gfx.tile(x, y, self._tile_color(tile), OUTLINE)
 
     def _draw_player(self, gfx):
-        if self.invulnerable_timer > 0 and (self.invulnerable_timer // 5) % 2 == 0:
+        if self.respawn_protection_timer > 0 and (self.respawn_protection_timer // 5) % 2 == 0:
             return
         x = self.player.x - self.camera_x
         y = self.player.y - self.camera_y
         gfx.player(x, y - 4, flip_x=self.player.facing > 0)
 
     def _check_enemy_hits(self):
-        if self.invulnerable_timer > 0:
+        if self.respawn_protection_timer > 0:
             return
         for slime in self.slimes:
             if rectangles_overlap(self.player, slime):
@@ -181,19 +183,17 @@ class Game:
             self._respawn_player()
             return
 
-        self.invulnerable_timer = INVULNERABLE_FRAMES
-        if self.player.x < enemy.x:
-            self.player.vx = -2
-            self.player.facing = -1
+        player_center = self.player.x + self.player.w // 2
+        enemy_center = enemy.x + enemy.w // 2
+        if player_center < enemy_center:
+            self.player.knockback(-2, -5)
         else:
-            self.player.vx = 2
-            self.player.facing = 1
-        self.player.vy = -5
+            self.player.knockback(2, -5)
 
     def _respawn_player(self):
         self.player = Player(*self.world.spawn_position())
         self.health = self.max_health
-        self.invulnerable_timer = INVULNERABLE_FRAMES
+        self.respawn_protection_timer = RESPAWN_PROTECTION_FRAMES
         self._update_camera()
 
     def _make_slimes(self):

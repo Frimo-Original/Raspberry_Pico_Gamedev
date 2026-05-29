@@ -3,6 +3,7 @@ import time
 import tkinter as tk
 from pathlib import Path
 
+from api import draw_text
 from api.keys import Keys
 from game_core.constants import SCALE, SCREEN_H, SCREEN_W
 
@@ -110,6 +111,9 @@ class TkRenderer:
                     fill=rgb565_to_hex(color),
                     outline="",
                 )
+
+    def text(self, x, y, text, color, scale=1):
+        draw_text(self, x, y, text, color, scale)
 
     def player(self, x, y, flip_x=False):
         pixel = max(1, SCALE // 2)

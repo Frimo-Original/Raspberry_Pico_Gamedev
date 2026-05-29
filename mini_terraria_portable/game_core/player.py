@@ -13,18 +13,24 @@ class Player:
         self.on_ground = False
         self.facing = -1
         self.state = SpriteState.IDLE
+        self.knockback_timer = 0
+        self.knockback_vx = 0
 
     def update(self, keys, world):
-        self.vx = 0
-        if keys.left:
-            self.vx -= MOVE_SPEED
-        if keys.right:
-            self.vx += MOVE_SPEED
+        if self.knockback_timer > 0:
+            self.vx = self.knockback_vx
+            self.knockback_timer -= 1
+        else:
+            self.vx = 0
+            if keys.left:
+                self.vx -= MOVE_SPEED
+            if keys.right:
+                self.vx += MOVE_SPEED
         if self.vx < 0:
             self.facing = -1
         elif self.vx > 0:
             self.facing = 1
-        if keys.jump and self.on_ground:
+        if keys.jump and self.on_ground and self.knockback_timer == 0:
             self.vy = JUMP_SPEED
             self.on_ground = False
 
@@ -81,3 +87,10 @@ class Player:
 
     def tile_y(self):
         return (self.y + self.h // 2) // TILE
+
+    def knockback(self, vx, vy, frames=10):
+        self.knockback_vx = vx
+        self.knockback_timer = frames
+        self.vx = vx
+        self.vy = vy
+        self.facing = -1 if vx < 0 else 1
