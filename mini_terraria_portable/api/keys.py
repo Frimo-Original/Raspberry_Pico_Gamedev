@@ -7,6 +7,9 @@ class Keys:
         self.place = False
         self.cursor_x = 0
         self.cursor_y = 0
+        self.cursor_active = False
+        self.aim_x = 0
+        self.aim_y = 0
 
     @property
     def action(self):

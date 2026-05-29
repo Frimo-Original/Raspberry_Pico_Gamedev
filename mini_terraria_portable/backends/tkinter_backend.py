@@ -196,6 +196,7 @@ class TkInput:
     def _mouse_move(self, event):
         self.keys.cursor_x = event.x // SCALE
         self.keys.cursor_y = event.y // SCALE
+        self.keys.cursor_active = True
 
     def _dig_down(self, event):
         self._mouse_move(event)

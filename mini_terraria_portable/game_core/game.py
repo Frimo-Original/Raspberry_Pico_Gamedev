@@ -10,6 +10,7 @@ from .slime import Slime
 from .world import World
 
 RESPAWN_PROTECTION_FRAMES = 45
+YELLOW = 0xFFE0
 HEART_COUNT = 5
 HEART_HEALTH = 20
 HEALTH_QUARTER = 5
@@ -20,6 +21,10 @@ REGEN_INTERVAL_FRAMES = 30
 REGEN_AMOUNT = HEALTH_QUARTER
 MENU_BACKGROUND_W = 160
 MENU_BACKGROUND_H = 47
+SELECT_REACH_TILES = 3
+SELECT_DEADZONE = 16
+SELECT_DISTANCE_2 = 42
+SELECT_DISTANCE_3 = 68
 
 
 class Game:
@@ -34,6 +39,8 @@ class Game:
         self.max_health = MAX_HEALTH
         self.regen_timer = 0
         self.respawn_protection_timer = 0
+        self.selected_tx = None
+        self.selected_ty = None
         self.last_dig = False
         self.last_place = False
         self.frame_count = 0
@@ -56,6 +63,7 @@ class Game:
             self.respawn_protection_timer -= 1
         self.frame_count += 1
         self._update_camera()
+        self._update_selected_block(keys)
         self._edit_world(keys)
 
     def draw(self, gfx):
@@ -70,6 +78,7 @@ class Game:
 
         gfx.clear(SKY)
         self._draw_tiles(gfx)
+        self._draw_selected_block(gfx)
         self._draw_slimes(gfx)
         self._draw_player(gfx)
         self._draw_hud(gfx)
@@ -131,17 +140,66 @@ class Game:
             self.camera_y = max_y
 
     def _edit_world(self, keys):
-        tx = (keys.cursor_x + self.camera_x) // TILE
-        ty = (keys.cursor_y + self.camera_y) // TILE
-
-        if keys.dig and not self.last_dig:
-            self.world.set(tx, ty, EMPTY)
-        if keys.place and not self.last_place:
-            if self.world.get(tx, ty) == EMPTY:
-                self.world.set(tx, ty, DIRT)
-
+        # Пока только выбираем блок. Ломание и постановку подключим после инвентаря.
         self.last_dig = keys.dig
         self.last_place = keys.place
+
+    def _update_selected_block(self, keys):
+        target = self._joystick_target(keys)
+        if target is None and keys.cursor_active:
+            tx = (keys.cursor_x + self.camera_x) // TILE
+            ty = (keys.cursor_y + self.camera_y) // TILE
+            if self._block_in_select_range(tx, ty):
+                target = (tx, ty)
+        if target is None or self._block_inside_player(target[0], target[1]):
+            self.selected_tx = None
+            self.selected_ty = None
+        else:
+            self.selected_tx, self.selected_ty = target
+
+    def _joystick_target(self, keys):
+        dx = self._axis_to_tile_offset(keys.aim_x)
+        dy = self._axis_to_tile_offset(keys.aim_y)
+        if dx == 0 and dy == 0:
+            return None
+
+        left, right, top, bottom = self._player_tile_bounds()
+        tx = (left + right) // 2 + dx
+        ty = bottom + dy
+        if 0 <= tx < WORLD_W and 0 <= ty < WORLD_H:
+            return tx, ty
+        return None
+
+    def _axis_to_tile_offset(self, value):
+        sign = 1
+        if value < 0:
+            sign = -1
+            value = -value
+        if value <= SELECT_DEADZONE:
+            return 0
+        if value < SELECT_DISTANCE_2:
+            return sign
+        if value < SELECT_DISTANCE_3:
+            return sign * 2
+        return sign * SELECT_REACH_TILES
+
+    def _player_tile_bounds(self):
+        left = self.player.x // TILE
+        right = (self.player.x + self.player.w - 1) // TILE
+        top = self.player.y // TILE
+        bottom = (self.player.y + self.player.h - 1) // TILE
+        return left, right, top, bottom
+
+    def _block_in_select_range(self, tx, ty):
+        left, right, top, bottom = self._player_tile_bounds()
+        return (
+            left - SELECT_REACH_TILES <= tx <= right + SELECT_REACH_TILES
+            and top - SELECT_REACH_TILES <= ty <= bottom + SELECT_REACH_TILES
+        )
+
+    def _block_inside_player(self, tx, ty):
+        left, right, top, bottom = self._player_tile_bounds()
+        return left <= tx <= right and top <= ty <= bottom
 
     def _draw_tiles(self, gfx):
         first_x = self.camera_x // TILE
@@ -252,6 +310,18 @@ class Game:
         for slime in self.slimes:
             if left <= slime.x <= right:
                 slime.draw(gfx, self.camera_x, self.camera_y)
+
+    def _draw_selected_block(self, gfx):
+        if self.selected_tx is None or self.selected_ty is None:
+            return
+        x = self.selected_tx * TILE - self.camera_x
+        y = self.selected_ty * TILE - self.camera_y
+        if x <= -TILE or x >= SCREEN_W or y <= -TILE or y >= SCREEN_H:
+            return
+        gfx.rect(x, y, TILE, 1, YELLOW)
+        gfx.rect(x, y + TILE - 1, TILE, 1, YELLOW)
+        gfx.rect(x, y, 1, TILE, YELLOW)
+        gfx.rect(x + TILE - 1, y, 1, TILE, YELLOW)
 
     def _draw_hud(self, gfx):
         gap = 1

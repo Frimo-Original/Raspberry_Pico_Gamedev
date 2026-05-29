@@ -14,9 +14,13 @@ except ImportError:
     game = None
 
 KEYBOARD_BRIDGE_ENABLED = True
+JOYSTICK_MOVEMENT_ENABLED = False
 KEYBOARD_HOLD_FRAMES = 6
 MENU_BACKGROUND_W = 160
 MENU_BACKGROUND_H = 47
+ACTION_CENTER_X = 79
+ACTION_CENTER_Y = 59
+AIM_SMOOTHING = 3
 
 
 class PicoRenderer:
@@ -91,6 +95,8 @@ class PicoInput:
         self.kb_left = 0
         self.kb_right = 0
         self.kb_jump = 0
+        self.aim_x = 0
+        self.aim_y = 0
         self.stdin_poll = None
         if KEYBOARD_BRIDGE_ENABLED and sys is not None and select is not None:
             try:
@@ -101,15 +107,37 @@ class PicoInput:
 
     def poll(self):
         self._poll_keyboard_bridge()
-        self.keys.left = game.btn_left() or self.kb_left > 0
-        self.keys.right = game.btn_right() or self.kb_right > 0
-        self.keys.jump = game.btn_jump() or self.kb_jump > 0
-        self.keys.cursor_x = game.action_x()
-        self.keys.cursor_y = game.action_y()
+        self.keys.left = self.kb_left > 0
+        self.keys.right = self.kb_right > 0
+        self.keys.jump = self.kb_jump > 0
+        if JOYSTICK_MOVEMENT_ENABLED:
+            self.keys.left = self.keys.left or game.btn_left()
+            self.keys.right = self.keys.right or game.btn_right()
+            self.keys.jump = self.keys.jump or game.btn_jump()
+        action_x = game.action_x()
+        action_y = game.action_y()
+        self.keys.cursor_x = action_x
+        self.keys.cursor_y = action_y
+        self.keys.cursor_active = False
+        self.aim_x = self._smooth_axis(self.aim_x, self._scale_axis(action_x - ACTION_CENTER_X, ACTION_CENTER_X))
+        self.aim_y = self._smooth_axis(self.aim_y, self._scale_axis(action_y - ACTION_CENTER_Y, ACTION_CENTER_Y))
+        self.keys.aim_x = self.aim_x
+        self.keys.aim_y = self.aim_y
         self.keys.dig = game.action_dig()
         self.keys.place = game.action_place()
         self._tick_keyboard_bridge()
         return self.keys
+
+    def _scale_axis(self, value, center):
+        scaled = value * 100 // center
+        if scaled < -100:
+            return -100
+        if scaled > 100:
+            return 100
+        return scaled
+
+    def _smooth_axis(self, previous, current):
+        return (previous * (AIM_SMOOTHING - 1) + current) // AIM_SMOOTHING
 
     def _poll_keyboard_bridge(self):
         if self.stdin_poll is None:
