@@ -9,22 +9,22 @@
 
 ```text
 Game    обновляет игру и рисует кадр
-Actor   хранит игровой объект: игрока, подарок, врага, монету
+GameObject   хранит игровой объект: игрока, подарок, врага, монету
 keys    хранит нажатые кнопки
 ```
 
 В игре типа Terraria еще есть `World`, который хранит блоки мира.
 В игре “поймай подарок” мира из блоков может вообще не быть.
 
-## Игровой объект Actor
+## Игровой объект GameObject
 
-`Actor` подходит для игрока, подарка, врага, пули или монеты:
+`GameObject` подходит для игрока, подарка, врага, пули или монеты:
 
 ```python
-from api import Actor, GREEN, RED
+from api import GameObject, GREEN, RED
 
-player = Actor(60, 100, 20, 6, GREEN)
-gift = Actor(20, 0, 8, 8, RED)
+player = GameObject(60, 100, 20, 6, GREEN)
+gift = GameObject(20, 0, 8, 8, RED)
 ```
 
 У объекта есть координаты, размер и скорость:
@@ -65,22 +65,34 @@ player.draw(gfx)
 
 ## Ввод
 
-В `update(keys)` доступны кнопки:
+В `update(keys)` доступны направления, кнопки и оси:
 
 ```python
 keys.left
 keys.right
-keys.jump
-keys.dig
-keys.place
-keys.aim_x
-keys.aim_y
+keys.up
+keys.down
+keys.button_a
+keys.button_b
+keys.button_menu
+keys.axis_x
+keys.axis_y
 ```
 
 На компьютере это клавиатура и мышь.
 На Pico это джойстик и кнопка.
 
-`aim_x` и `aim_y` показывают отклонение джойстика для выбора блока:
+Это не команды конкретной игры, а просто состояние ввода.
+Смысл кнопок задает сама игра:
+
+```python
+if keys.button_a:
+    # в одной игре это может быть прыжок
+    # в другой игре это может быть удар
+    pass
+```
+
+`axis_x` и `axis_y` показывают отклонение аналогового джойстика:
 
 ```text
 -100  сильно влево или вверх
@@ -101,7 +113,7 @@ keys.aim_y
 Для меню можно использовать общее действие:
 
 ```python
-if keys.action:
+if keys.any_button:
     start_game()
 ```
 
@@ -428,7 +440,7 @@ python3 tools/run_catch_gift.py
 Она использует тот же API:
 
 ```text
-Actor
+GameObject
 keys.left / keys.right
 overlaps()
 draw()

@@ -15,7 +15,7 @@ def rectangles_overlap(a, b):
     )
 
 
-class Actor:
+class GameObject:
     def __init__(self, x, y, w, h, color=0xFFFF):
         self.x = x
         self.y = y

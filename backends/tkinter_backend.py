@@ -3,8 +3,7 @@ import time
 import tkinter as tk
 from pathlib import Path
 
-from api import draw_text, sprite8_entries
-from api.keys import Keys
+from api import Keys, draw_text, sprite8_entries
 from game_core.constants import SCALE, SCREEN_H, SCREEN_W
 
 
@@ -12,8 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 TRANSPARENT = 0xF81F
 ITEM_SWING_FRAMES = 6
 SWING_ITEMS = ("copper_sword", "copper_pickaxe")
-HOTBAR_KEYS = {"slash", "question", "period", "greater", "less", "Tab"}
+HOTBAR_KEYS = {"slash", "question", "period", "less", "Tab"}
 HOTBAR_CHARS = {"/", "?", ".", ",", "ю", "Ю", "б", "Б"}
+DIG_KEYS = {"greater"}
+DIG_CHARS = {">"}
 
 
 HIRES_PLAYER_ART = (
@@ -186,6 +187,8 @@ class TkInput:
         self.keys = Keys()
         self._pressed = set()
         self._hotbar_toggle_pending = False
+        self._mouse_dig = False
+        self._mouse_place = False
         root.bind("<KeyPress>", self._key_down)
         root.bind("<KeyRelease>", self._key_up)
         canvas.bind("<Motion>", self._mouse_move)
@@ -200,43 +203,53 @@ class TkInput:
     def poll(self):
         self.keys.left = "Left" in self._pressed or "a" in self._pressed
         self.keys.right = "Right" in self._pressed or "d" in self._pressed
-        self.keys.jump = "space" in self._pressed or "Up" in self._pressed or "w" in self._pressed
-        self.keys.hotbar_toggle = self._hotbar_toggle_pending
+        self.keys.up = "space" in self._pressed or "Up" in self._pressed or "w" in self._pressed
+        self.keys.down = "Down" in self._pressed or "s" in self._pressed
+        self.keys.button_a = self._mouse_dig or "greater" in self._pressed
+        self.keys.button_b = self._mouse_place
+        self.keys.button_menu = self._hotbar_toggle_pending
         self._hotbar_toggle_pending = False
         return self.keys
 
     def _key_down(self, event):
-        if self._is_hotbar_key(event) and event.keysym not in self._pressed:
+        if self._is_dig_key(event):
+            self._pressed.add("greater")
+        elif self._is_hotbar_key(event) and event.keysym not in self._pressed:
             self._hotbar_toggle_pending = True
         self._pressed.add(event.keysym)
 
     def _is_hotbar_key(self, event):
         return event.keysym in HOTBAR_KEYS or event.char in HOTBAR_CHARS
 
+    def _is_dig_key(self, event):
+        return event.keysym in DIG_KEYS or event.char in DIG_CHARS
+
     def _key_up(self, event):
+        if self._is_dig_key(event) and "greater" in self._pressed:
+            self._pressed.remove("greater")
         if event.keysym in self._pressed:
             self._pressed.remove(event.keysym)
 
     def _mouse_move(self, event):
-        self.keys.cursor_x = event.x // SCALE
-        self.keys.cursor_y = event.y // SCALE
-        self.keys.cursor_active = True
+        self.keys.pointer_x = event.x // SCALE
+        self.keys.pointer_y = event.y // SCALE
+        self.keys.pointer_active = True
 
     def _dig_down(self, event):
         self._mouse_move(event)
-        self.keys.dig = True
+        self._mouse_dig = True
 
     def _dig_up(self, event):
         self._mouse_move(event)
-        self.keys.dig = False
+        self._mouse_dig = False
 
     def _place_down(self, event):
         self._mouse_move(event)
-        self.keys.place = True
+        self._mouse_place = True
 
     def _place_up(self, event):
         self._mouse_move(event)
-        self.keys.place = False
+        self._mouse_place = False
 
 
 def run(game):

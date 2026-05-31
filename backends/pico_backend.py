@@ -1,5 +1,4 @@
-from api import draw_text, sprite8_entries
-from api.keys import Keys
+from api import Keys, draw_text, sprite8_entries
 
 try:
     import sys
@@ -109,9 +108,10 @@ class PicoInput:
         self.kb_left = 0
         self.kb_right = 0
         self.kb_jump = 0
+        self.kb_dig = 0
         self.kb_hotbar_toggle = False
-        self.aim_x = 0
-        self.aim_y = 0
+        self.axis_x = 0
+        self.axis_y = 0
         self.stdin_poll = None
         if KEYBOARD_BRIDGE_ENABLED and sys is not None and select is not None:
             try:
@@ -124,24 +124,25 @@ class PicoInput:
         self._poll_keyboard_bridge()
         self.keys.left = self.kb_left > 0
         self.keys.right = self.kb_right > 0
-        self.keys.jump = self.kb_jump > 0
+        self.keys.up = self.kb_jump > 0
+        self.keys.down = False
         if JOYSTICK_MOVEMENT_ENABLED:
             self.keys.left = self.keys.left or game.btn_left()
             self.keys.right = self.keys.right or game.btn_right()
-            self.keys.jump = self.keys.jump or game.btn_jump()
+            self.keys.up = self.keys.up or game.btn_jump()
         action_x = game.action_x()
         action_y = game.action_y()
-        self.keys.cursor_x = action_x
-        self.keys.cursor_y = action_y
-        self.keys.cursor_active = False
-        self.aim_x = self._smooth_axis(self.aim_x, self._scale_axis(action_x - ACTION_CENTER_X, ACTION_CENTER_X))
-        self.aim_y = self._smooth_axis(self.aim_y, self._scale_axis(action_y - ACTION_CENTER_Y, ACTION_CENTER_Y))
-        self.keys.aim_x = self.aim_x
-        self.keys.aim_y = self.aim_y
-        self.keys.hotbar_toggle = self.kb_hotbar_toggle
+        self.keys.pointer_x = action_x
+        self.keys.pointer_y = action_y
+        self.keys.pointer_active = False
+        self.axis_x = self._smooth_axis(self.axis_x, self._scale_axis(action_x - ACTION_CENTER_X, ACTION_CENTER_X))
+        self.axis_y = self._smooth_axis(self.axis_y, self._scale_axis(action_y - ACTION_CENTER_Y, ACTION_CENTER_Y))
+        self.keys.axis_x = self.axis_x
+        self.keys.axis_y = self.axis_y
+        self.keys.button_menu = self.kb_hotbar_toggle
         self.kb_hotbar_toggle = False
-        self.keys.dig = game.action_dig()
-        self.keys.place = game.action_place()
+        self.keys.button_a = game.action_dig() or self.kb_dig > 0
+        self.keys.button_b = game.action_place()
         self._tick_keyboard_bridge()
         return self.keys
 
@@ -167,6 +168,8 @@ class PicoInput:
                 self.kb_right = KEYBOARD_HOLD_FRAMES
             elif ch == "J":
                 self.kb_jump = KEYBOARD_HOLD_FRAMES
+            elif ch == "D":
+                self.kb_dig = KEYBOARD_HOLD_FRAMES
             elif ch == "H" or ch == "h" or ch == "T":
                 self.kb_hotbar_toggle = True
 
@@ -177,6 +180,8 @@ class PicoInput:
             self.kb_right -= 1
         if self.kb_jump > 0:
             self.kb_jump -= 1
+        if self.kb_dig > 0:
+            self.kb_dig -= 1
 
 
 def run(app):

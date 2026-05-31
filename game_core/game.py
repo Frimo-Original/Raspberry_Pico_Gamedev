@@ -45,6 +45,9 @@ ITEM_PIVOT_Y = 22
 SWORD_DAMAGE = 10
 SWORD_HIT_W = 18
 SWORD_HIT_H = 18
+DIG_TIME_DIRT = 24
+DIG_TIME_STONE = 70
+DIG_SWING_EVERY = 14
 
 
 class HitBox:
@@ -77,13 +80,18 @@ class Game:
         self.item_swing_tick = 0
         self.item_swing_name = ""
         self.sword_hit_done = False
+        self.dig_tx = None
+        self.dig_ty = None
+        self.dig_progress = 0
+        self.dig_total = 0
+        self.dig_swing_timer = 0
         self.last_dig = False
         self.last_place = False
         self.frame_count = 0
 
     def update(self, keys):
         if self.state == "menu":
-            if keys.action:
+            if keys.any_button:
                 self._start_loading()
             return
         if self.state == "loading":
@@ -95,9 +103,10 @@ class Game:
         if self.hotbar_select_mode:
             keys.left = False
             keys.right = False
-            keys.jump = False
-            keys.dig = False
-            keys.place = False
+            keys.up = False
+            keys.down = False
+            keys.button_a = False
+            keys.button_b = False
         self.player.update(keys, self.world)
         self._update_slimes()
         self._check_enemy_hits()
@@ -107,6 +116,7 @@ class Game:
         self.frame_count += 1
         self._update_camera()
         self._update_selected_block(keys)
+        self._update_pickaxe_dig(keys)
         self._update_item_swing(keys)
         self._check_sword_hits()
         self._edit_world(keys)
@@ -186,12 +196,12 @@ class Game:
             self.camera_y = max_y
 
     def _edit_world(self, keys):
-        # Пока только выбираем блок. Ломание и постановку подключим после инвентаря.
-        self.last_dig = keys.dig
-        self.last_place = keys.place
+        # Keep edge-triggered actions stable between frames.
+        self.last_dig = keys.button_a
+        self.last_place = keys.button_b
 
     def _update_hotbar_selection(self, keys):
-        if keys.hotbar_toggle:
+        if keys.button_menu:
             if self.hotbar_select_mode:
                 self.hotbar_selected = self.hotbar_candidate
                 self.hotbar_select_mode = False
@@ -203,7 +213,7 @@ class Game:
         if not self.hotbar_select_mode:
             return
 
-        axis = keys.aim_x
+        axis = keys.axis_x
         if -HOTBAR_SELECT_RELEASE <= axis <= HOTBAR_SELECT_RELEASE:
             self.hotbar_axis_lock = 0
             return
@@ -222,11 +232,8 @@ class Game:
 
     def _update_item_swing(self, keys):
         item_name = self._current_swing_item()
-        if item_name and keys.dig and not self.last_dig:
-            self.item_swing_name = item_name
-            self.item_swing_frame = 0
-            self.item_swing_tick = 0
-            self.sword_hit_done = False
+        if item_name and item_name != "copper_pickaxe" and keys.button_a and not self.last_dig:
+            self._start_item_swing(item_name)
         if self.item_swing_frame < 0:
             return
         self.item_swing_tick += 1
@@ -244,6 +251,59 @@ class Game:
         if self.hotbar_selected == ITEM_PICKAXE:
             return "copper_pickaxe"
         return ""
+
+    def _start_item_swing(self, item_name):
+        self.item_swing_name = item_name
+        self.item_swing_frame = 0
+        self.item_swing_tick = 0
+        if item_name == "copper_sword":
+            self.sword_hit_done = False
+
+    def _update_pickaxe_dig(self, keys):
+        if self.hotbar_selected != ITEM_PICKAXE or not keys.button_a:
+            self._reset_dig_progress()
+            return
+        if self.selected_tx is None or self.selected_ty is None:
+            self._reset_dig_progress()
+            return
+
+        tile = self.world.get(self.selected_tx, self.selected_ty)
+        total = self._dig_time(tile)
+        if total <= 0:
+            self._reset_dig_progress()
+            return
+
+        if self.dig_tx != self.selected_tx or self.dig_ty != self.selected_ty:
+            self.dig_tx = self.selected_tx
+            self.dig_ty = self.selected_ty
+            self.dig_progress = 0
+            self.dig_total = total
+            self.dig_swing_timer = 0
+
+        self.dig_total = total
+        self.dig_progress += 1
+        self.dig_swing_timer -= 1
+        if self.dig_swing_timer <= 0:
+            self._start_item_swing("copper_pickaxe")
+            self.dig_swing_timer = DIG_SWING_EVERY
+
+        if self.dig_progress >= self.dig_total:
+            self.world.set(self.dig_tx, self.dig_ty, EMPTY)
+            self._reset_dig_progress()
+
+    def _dig_time(self, tile):
+        if tile == DIRT:
+            return DIG_TIME_DIRT
+        if tile == STONE:
+            return DIG_TIME_STONE
+        return 0
+
+    def _reset_dig_progress(self):
+        self.dig_tx = None
+        self.dig_ty = None
+        self.dig_progress = 0
+        self.dig_total = 0
+        self.dig_swing_timer = 0
 
     def _check_sword_hits(self):
         if self.item_swing_name != "copper_sword" or self.item_swing_frame < 0 or self.sword_hit_done:
@@ -270,9 +330,9 @@ class Game:
             self.selected_ty = None
             return
         target = self._joystick_target(keys)
-        if target is None and keys.cursor_active:
-            tx = (keys.cursor_x + self.camera_x) // TILE
-            ty = (keys.cursor_y + self.camera_y) // TILE
+        if target is None and keys.pointer_active:
+            tx = (keys.pointer_x + self.camera_x) // TILE
+            ty = (keys.pointer_y + self.camera_y) // TILE
             if self._block_in_select_range(tx, ty):
                 target = (tx, ty)
         if target is None or self._block_inside_player(target[0], target[1]):
@@ -282,8 +342,8 @@ class Game:
             self.selected_tx, self.selected_ty = target
 
     def _joystick_target(self, keys):
-        dx = self._axis_to_tile_offset(keys.aim_x)
-        dy = self._axis_to_tile_offset(keys.aim_y)
+        dx = self._axis_to_tile_offset(keys.axis_x)
+        dy = self._axis_to_tile_offset(keys.axis_y)
         if dx == 0 and dy == 0:
             return None
 
@@ -463,6 +523,11 @@ class Game:
         gfx.rect(x, y + TILE - 1, TILE, 1, YELLOW)
         gfx.rect(x, y, 1, TILE, YELLOW)
         gfx.rect(x + TILE - 1, y, 1, TILE, YELLOW)
+        if self.dig_tx == self.selected_tx and self.dig_ty == self.selected_ty and self.dig_total > 0:
+            filled = (TILE - 2) * self.dig_progress // self.dig_total
+            gfx.rect(x + 1, y + TILE - 3, TILE - 2, 2, BLACK)
+            if filled > 0:
+                gfx.rect(x + 1, y + TILE - 3, filled, 2, UI_BAR)
 
     def _draw_hud(self, gfx):
         self._draw_hotbar(gfx)

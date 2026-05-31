@@ -6,8 +6,10 @@ import tkinter as tk
 
 BAUDRATE = 115200
 SEND_INTERVAL_MS = 30
-HOTBAR_KEYS = {"slash", "question", "period", "greater", "less", "Tab"}
+HOTBAR_KEYS = {"slash", "question", "period", "less", "Tab"}
 HOTBAR_CHARS = {"/", "?", ".", ",", "ю", "Ю", "б", "Б"}
+DIG_KEYS = {"greater"}
+DIG_CHARS = {">"}
 
 
 def find_default_port():
@@ -24,6 +26,7 @@ class KeyboardBridge:
         self.left = False
         self.right = False
         self.jump = False
+        self.dig = False
         self.hotbar_toggle = False
         self.pressed = set()
 
@@ -32,7 +35,7 @@ class KeyboardBridge:
         root.resizable(False, False)
         self.label = tk.Label(
             root,
-            text="Click here, then use arrows / Space\n\nLeft/Right: move\nUp/Space: jump\n?/Slash: choose slot\nQ: quit",
+            text="Click here, then use arrows / Space\n\nLeft/Right: move\nUp/Space: jump\n?/Slash: choose slot\n>: dig/use\nQ: quit",
             font=("Arial", 16),
             justify=tk.CENTER,
         )
@@ -56,6 +59,8 @@ class KeyboardBridge:
             self.right = True
         elif key in ("Up", "space", "w", "W"):
             self.jump = True
+        elif self._is_dig_key(event):
+            self.dig = True
         elif self._is_hotbar_key(event) and first_press:
             self.hotbar_toggle = True
             self.status.config(text=f"Choose slot command sent: {key!r} {event.char!r}")
@@ -64,6 +69,9 @@ class KeyboardBridge:
 
     def _is_hotbar_key(self, event):
         return event.keysym in HOTBAR_KEYS or event.char in HOTBAR_CHARS
+
+    def _is_dig_key(self, event):
+        return event.keysym in DIG_KEYS or event.char in DIG_CHARS
 
     def _key_up(self, event):
         key = event.keysym
@@ -75,6 +83,8 @@ class KeyboardBridge:
             self.right = False
         elif key in ("Up", "space", "w", "W"):
             self.jump = False
+        elif self._is_dig_key(event):
+            self.dig = False
 
     def _send_state(self):
         data = bytearray()
@@ -84,6 +94,8 @@ class KeyboardBridge:
             data.append(ord("R"))
         if self.jump:
             data.append(ord("J"))
+        if self.dig:
+            data.append(ord("D"))
         if self.hotbar_toggle:
             data.append(ord("H"))
             self.hotbar_toggle = False

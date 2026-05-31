@@ -30,7 +30,7 @@ class Player:
             self.facing = -1
         elif self.vx > 0:
             self.facing = 1
-        if keys.jump and self.on_ground and self.knockback_timer == 0:
+        if keys.up and self.on_ground and self.knockback_timer == 0:
             self.vy = JUMP_SPEED
             self.on_ground = False
 

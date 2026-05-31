@@ -1,11 +1,14 @@
-from api import Actor, BLACK, GREEN, RED, SKY, WHITE
-from game_core.constants import SCREEN_H, SCREEN_W
+from api import GameObject, BLACK, GREEN, RED, SKY, WHITE
+
+
+WIDTH = 160
+HEIGHT = 120
 
 
 class CatchGiftGame:
     def __init__(self):
-        self.player = Actor(SCREEN_W // 2 - 10, SCREEN_H - 12, 20, 6, GREEN)
-        self.gift = Actor(20, 0, 8, 8, RED)
+        self.player = GameObject(WIDTH // 2 - 10, HEIGHT - 12, 20, 6, GREEN)
+        self.gift = GameObject(20, 0, 8, 8, RED)
         self.score = 0
         self.missed = 0
 
@@ -16,7 +19,7 @@ class CatchGiftGame:
         if keys.right:
             self.player.vx = 3
         self.player.move()
-        self.player.keep_inside(SCREEN_W, SCREEN_H)
+        self.player.keep_inside(WIDTH, HEIGHT)
 
         self.gift.vy = 2
         self.gift.move()
@@ -24,7 +27,7 @@ class CatchGiftGame:
         if self.player.overlaps(self.gift):
             self.score += 1
             self._reset_gift()
-        elif self.gift.y > SCREEN_H:
+        elif self.gift.y > HEIGHT:
             self.missed += 1
             self._reset_gift()
 
@@ -36,7 +39,7 @@ class CatchGiftGame:
         gfx.present()
 
     def _reset_gift(self):
-        self.gift.x = (self.gift.x * 37 + 23) % (SCREEN_W - self.gift.w)
+        self.gift.x = (self.gift.x * 37 + 23) % (WIDTH - self.gift.w)
         self.gift.y = 0
         self.gift.vy = 0
 
