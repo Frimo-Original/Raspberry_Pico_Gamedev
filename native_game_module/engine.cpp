@@ -117,6 +117,10 @@ extern "C" void engine_init(void) {
     adc_gpio_init(GAME_PIN_JOY_X);
     adc_gpio_init(GAME_PIN_JOY_Y);
     init_switch(GAME_PIN_JOY_SW);
+    init_switch(GAME_PIN_DPAD_DOWN);
+    init_switch(GAME_PIN_DPAD_UP);
+    init_switch(GAME_PIN_DPAD_LEFT);
+    init_switch(GAME_PIN_DPAD_RIGHT);
 
     init_player_sprite();
     ili9341_init();
@@ -297,15 +301,23 @@ extern "C" void engine_present(void) {
 }
 
 extern "C" bool engine_btn_left(void) {
-    return read_adc(GAME_JOY_ADC_X) < GAME_JOY_LOW;
+    return switch_pressed(GAME_PIN_DPAD_LEFT);
 }
 
 extern "C" bool engine_btn_right(void) {
-    return read_adc(GAME_JOY_ADC_X) > GAME_JOY_HIGH;
+    return switch_pressed(GAME_PIN_DPAD_RIGHT);
 }
 
 extern "C" bool engine_btn_jump(void) {
-    return read_adc(GAME_JOY_ADC_Y) < GAME_JOY_LOW;
+    return switch_pressed(GAME_PIN_DPAD_UP);
+}
+
+extern "C" bool engine_btn_down(void) {
+    return switch_pressed(GAME_PIN_DPAD_DOWN);
+}
+
+extern "C" bool engine_btn_menu(void) {
+    return switch_pressed(GAME_PIN_JOY_SW);
 }
 
 extern "C" int engine_action_x(void) {
@@ -333,7 +345,7 @@ extern "C" int engine_action_y(void) {
 }
 
 extern "C" bool engine_action_dig(void) {
-    return switch_pressed(GAME_PIN_JOY_SW);
+    return false;
 }
 
 extern "C" bool engine_action_place(void) {

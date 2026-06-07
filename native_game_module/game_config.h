@@ -24,6 +24,11 @@
 #define GAME_PIN_JOY_Y 27
 #define GAME_PIN_JOY_SW 12
 
+#define GAME_PIN_DPAD_UP 13
+#define GAME_PIN_DPAD_DOWN 14
+#define GAME_PIN_DPAD_LEFT 15
+#define GAME_PIN_DPAD_RIGHT 22
+
 #define GAME_JOY_ADC_X 0
 #define GAME_JOY_ADC_Y 1
 #define GAME_JOY_LOW 1500

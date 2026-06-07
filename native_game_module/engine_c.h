@@ -20,6 +20,8 @@ void engine_present(void);
 bool engine_btn_left(void);
 bool engine_btn_right(void);
 bool engine_btn_jump(void);
+bool engine_btn_down(void);
+bool engine_btn_menu(void);
 int engine_action_x(void);
 int engine_action_y(void);
 bool engine_action_dig(void);

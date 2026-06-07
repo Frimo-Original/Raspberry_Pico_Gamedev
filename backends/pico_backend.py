@@ -12,14 +12,15 @@ try:
 except ImportError:
     game = None
 
-KEYBOARD_BRIDGE_ENABLED = True
-JOYSTICK_MOVEMENT_ENABLED = True
+KEYBOARD_BRIDGE_ENABLED = False
+DPAD_MOVEMENT_ENABLED = True
 KEYBOARD_HOLD_FRAMES = 6
 MENU_BACKGROUND_W = 160
 MENU_BACKGROUND_H = 47
 ACTION_CENTER_X = 79
 ACTION_CENTER_Y = 59
 AIM_SMOOTHING = 3
+JOYSTICK_ACTION_THRESHOLD = 18
 ITEM_SWING_FRAMES = 6
 SWING_ITEMS = ("copper_sword", "copper_pickaxe")
 
@@ -112,6 +113,7 @@ class PicoInput:
         self.kb_hotbar_toggle = False
         self.axis_x = 0
         self.axis_y = 0
+        self.menu_was_pressed = False
         self.stdin_poll = None
         if KEYBOARD_BRIDGE_ENABLED and sys is not None and select is not None:
             try:
@@ -126,22 +128,31 @@ class PicoInput:
         self.keys.right = self.kb_right > 0
         self.keys.up = self.kb_jump > 0
         self.keys.down = False
-        if JOYSTICK_MOVEMENT_ENABLED:
+        if DPAD_MOVEMENT_ENABLED:
             self.keys.left = self.keys.left or game.btn_left()
             self.keys.right = self.keys.right or game.btn_right()
             self.keys.up = self.keys.up or game.btn_jump()
+            self.keys.down = game.btn_down()
         action_x = game.action_x()
         action_y = game.action_y()
         self.keys.pointer_x = action_x
         self.keys.pointer_y = action_y
         self.keys.pointer_active = False
-        self.axis_x = self._smooth_axis(self.axis_x, self._scale_axis(action_x - ACTION_CENTER_X, ACTION_CENTER_X))
-        self.axis_y = self._smooth_axis(self.axis_y, self._scale_axis(action_y - ACTION_CENTER_Y, ACTION_CENTER_Y))
+        raw_axis_x = -self._scale_axis(action_x - ACTION_CENTER_X, ACTION_CENTER_X)
+        raw_axis_y = -self._scale_axis(action_y - ACTION_CENTER_Y, ACTION_CENTER_Y)
+        self.axis_x = self._smooth_axis(self.axis_x, raw_axis_x)
+        self.axis_y = self._smooth_axis(self.axis_y, raw_axis_y)
         self.keys.axis_x = self.axis_x
         self.keys.axis_y = self.axis_y
-        self.keys.button_menu = self.kb_hotbar_toggle
+        menu_pressed = game.btn_menu()
+        self.keys.button_menu = self.kb_hotbar_toggle or (menu_pressed and not self.menu_was_pressed)
+        self.menu_was_pressed = menu_pressed
         self.kb_hotbar_toggle = False
-        self.keys.button_a = game.action_dig() or self.kb_dig > 0
+        joystick_action = (
+            abs(raw_axis_x) > JOYSTICK_ACTION_THRESHOLD
+            or abs(raw_axis_y) > JOYSTICK_ACTION_THRESHOLD
+        )
+        self.keys.button_a = joystick_action or game.action_dig() or self.kb_dig > 0
         self.keys.button_b = game.action_place()
         self._tick_keyboard_bridge()
         return self.keys

@@ -45,8 +45,8 @@ ITEM_PIVOT_Y = 22
 SWORD_DAMAGE = 10
 SWORD_HIT_W = 18
 SWORD_HIT_H = 18
-DIG_TIME_DIRT = 24
-DIG_TIME_STONE = 70
+DIG_TIME_DIRT = 30
+DIG_TIME_STONE = 60
 DIG_SWING_EVERY = 14
 
 
@@ -91,7 +91,7 @@ class Game:
 
     def update(self, keys):
         if self.state == "menu":
-            if keys.any_button:
+            if keys.button_menu:
                 self._start_loading()
             return
         if self.state == "loading":
@@ -100,7 +100,7 @@ class Game:
             return
 
         self._update_hotbar_selection(keys)
-        if self.hotbar_select_mode:
+        if self.hotbar_select_mode or keys.button_menu:
             keys.left = False
             keys.right = False
             keys.up = False
@@ -108,6 +108,7 @@ class Game:
             keys.button_a = False
             keys.button_b = False
         self.player.update(keys, self.world)
+        self._update_player_facing_from_aim(keys)
         self._update_slimes()
         self._check_enemy_hits()
         self._update_health_regen()
@@ -232,7 +233,7 @@ class Game:
 
     def _update_item_swing(self, keys):
         item_name = self._current_swing_item()
-        if item_name and item_name != "copper_pickaxe" and keys.button_a and not self.last_dig:
+        if item_name == "copper_sword" and keys.button_a and self.item_swing_frame < 0:
             self._start_item_swing(item_name)
         if self.item_swing_frame < 0:
             return
@@ -244,6 +245,14 @@ class Game:
                 self.item_swing_frame = -1
                 self.item_swing_name = ""
                 self.sword_hit_done = False
+
+    def _update_player_facing_from_aim(self, keys):
+        if self.player.vx != 0:
+            return
+        if keys.axis_x < -SELECT_DEADZONE:
+            self.player.facing = -1
+        elif keys.axis_x > SELECT_DEADZONE:
+            self.player.facing = 1
 
     def _current_swing_item(self):
         if self.hotbar_selected == ITEM_SWORD:
@@ -554,13 +563,6 @@ class Game:
                 gfx.tile_sprite(x + 1, y + 1, dirt_tile(False))
             elif slot == ITEM_STONE:
                 gfx.tile_sprite(x + 1, y + 1, TILE_STONE)
-            elif slot == HOTBAR_SLOTS - 1:
-                self._draw_inventory_slot_icon(gfx, x + 1, y + 1)
-
-    def _draw_inventory_slot_icon(self, gfx, x, y):
-        gfx.rect(x + 1, y + 1, 6, 1, WHITE)
-        gfx.rect(x + 1, y + 3, 6, 1, WHITE)
-        gfx.rect(x + 1, y + 5, 6, 1, WHITE)
 
     def _draw_hearts(self, gfx):
         gap = 1

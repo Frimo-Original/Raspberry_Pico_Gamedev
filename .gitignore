@@ -3,3 +3,4 @@
 .idea/
 __pycache__/
 *.pyc
+tutorial/solutions_1.py

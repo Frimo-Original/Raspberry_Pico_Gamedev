@@ -2,12 +2,15 @@ from .constants import DIRT, EMPTY, STONE, TILE, WORLD_H, WORLD_W
 
 
 GEN_ROWS_PER_STEP = 4
+CAVE_TUNNEL_COUNT = 3
+CAVE_BRANCH_COUNT = 5
 
 
 class World:
     def __init__(self, seed=7, auto_generate=True):
         self.seed = seed
         self.surface = []
+        self.caves = bytearray(WORLD_W * WORLD_H)
         self.tiles = bytearray(WORLD_W * WORLD_H)
         self.generation_step = 0
         self.generation_row = 0
@@ -23,6 +26,7 @@ class World:
             return True
         if self.generation_step == 0:
             self.surface = self._make_surface()
+            self._make_caves()
             self.generation_done_steps += 1
             self.generation_step = 1
             return False
@@ -32,6 +36,7 @@ class World:
             return False
         if self.generation_step == 2:
             self._clear_spawn_area()
+            self.caves = None
             self.generation_done_steps += 1
             self.generation_done = True
             return True
@@ -99,39 +104,18 @@ class World:
             self.tiles[row_base + x] = self._generated_tile(x, y)
 
     def _generated_tile(self, x, y):
-        if y < self.surface[x] + 4:
-            return self._base_tile(x, y)
-
-        tile = self._base_tile(x, y)
-        empty = self._empty_neighbors_generated(x, y)
-        if tile != EMPTY and empty >= 5:
-            return EMPTY
-        if tile == EMPTY and empty <= 2:
-            return STONE
-        return tile
+        return self._base_tile(x, y)
 
     def _base_tile(self, x, y):
         ground = self.surface[x]
         dirt_depth = 4 + self._rand(x, 4, 3)
         if y < ground:
             return EMPTY
+        if self.caves[self._index(x, y)]:
+            return EMPTY
         if y < ground + dirt_depth:
             return DIRT
-        if y >= ground + 4 and self._cave_value(x, y) > 70:
-            return EMPTY
         return STONE
-
-    def _empty_neighbors_generated(self, x, y):
-        count = 0
-        for yy in range(y - 1, y + 2):
-            for xx in range(x - 1, x + 2):
-                if xx == x and yy == y:
-                    continue
-                if xx < 0 or xx >= WORLD_W or yy < 0 or yy >= WORLD_H:
-                    continue
-                if self._base_tile(xx, yy) == EMPTY:
-                    count += 1
-        return count
 
     def _clear_spawn_area(self):
         x = 3
@@ -161,10 +145,49 @@ class World:
             surface = smoothed
         return surface
 
-    def _cave_value(self, x, y):
-        a = self._rand(x // 2, y // 2, 100)
-        b = self._rand(x + y, y * 2, 100)
-        return (a * 2 + b) // 3
+    def _make_caves(self):
+        spacing = WORLD_W // (CAVE_TUNNEL_COUNT + 1)
+        for tunnel_index in range(CAVE_TUNNEL_COUNT):
+            entrance_x = spacing * (tunnel_index + 1)
+            entrance_x += self._rand(tunnel_index, 91, 9) - 4
+            entrance_x = self._clamp(entrance_x, 10, WORLD_W - 6)
+
+            center_x = entrance_x
+            start_y = self.surface[entrance_x]
+            for y in range(start_y, WORLD_H):
+                if y > start_y and y % 3 == 0:
+                    center_x += self._rand(tunnel_index * 17 + y, 73, 3) - 1
+                    center_x = self._clamp(center_x, 2, WORLD_W - 3)
+                radius = 1 if y < start_y + 6 else 2
+                self._carve_circle(center_x, y, radius)
+
+        for branch_index in range(CAVE_BRANCH_COUNT):
+            y = 20 + self._rand(branch_index, 121, max(1, WORLD_H - 24))
+            x = 4 + self._rand(branch_index, 133, 12)
+            direction = 1
+            length = WORLD_W - 8
+            for step in range(length):
+                if step > 0 and step % 5 == 0:
+                    y += self._rand(branch_index * 31 + step, 149, 3) - 1
+                    y = self._clamp(y, 18, WORLD_H - 3)
+                radius = 1 + self._rand(branch_index, step + 181, 2)
+                self._carve_circle(x, y, radius)
+                x += direction
+                if x >= WORLD_W - 4:
+                    break
+
+    def _carve_circle(self, center_x, center_y, radius):
+        radius_squared = radius * radius + 1
+        for y in range(center_y - radius, center_y + radius + 1):
+            if y < 0 or y >= WORLD_H:
+                continue
+            for x in range(center_x - radius, center_x + radius + 1):
+                if x < 0 or x >= WORLD_W:
+                    continue
+                dx = x - center_x
+                dy = y - center_y
+                if dx * dx + dy * dy <= radius_squared:
+                    self.caves[self._index(x, y)] = 1
 
     def _rand(self, x, y, maximum):
         value = x * 374761393 + y * 668265263 + self.seed * 982451653

@@ -116,6 +116,16 @@ static mp_obj_t game_btn_jump(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(game_btn_jump_obj, game_btn_jump);
 
+static mp_obj_t game_btn_down(void) {
+    return mp_obj_new_bool(engine_btn_down());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(game_btn_down_obj, game_btn_down);
+
+static mp_obj_t game_btn_menu(void) {
+    return mp_obj_new_bool(engine_btn_menu());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(game_btn_menu_obj, game_btn_menu);
+
 static mp_obj_t game_action_x(void) {
     return mp_obj_new_int(engine_action_x());
 }
@@ -177,6 +187,8 @@ static const mp_rom_map_elem_t game_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_btn_left), MP_ROM_PTR(&game_btn_left_obj) },
     { MP_ROM_QSTR(MP_QSTR_btn_right), MP_ROM_PTR(&game_btn_right_obj) },
     { MP_ROM_QSTR(MP_QSTR_btn_jump), MP_ROM_PTR(&game_btn_jump_obj) },
+    { MP_ROM_QSTR(MP_QSTR_btn_down), MP_ROM_PTR(&game_btn_down_obj) },
+    { MP_ROM_QSTR(MP_QSTR_btn_menu), MP_ROM_PTR(&game_btn_menu_obj) },
     { MP_ROM_QSTR(MP_QSTR_action_x), MP_ROM_PTR(&game_action_x_obj) },
     { MP_ROM_QSTR(MP_QSTR_action_y), MP_ROM_PTR(&game_action_y_obj) },
     { MP_ROM_QSTR(MP_QSTR_action_dig), MP_ROM_PTR(&game_action_dig_obj) },
